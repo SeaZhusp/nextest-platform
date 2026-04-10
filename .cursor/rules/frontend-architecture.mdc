@@ -1,0 +1,25 @@
+---
+description: Vue3 frontend architecture and coding conventions
+globs: frontend/src/**/*.{ts,vue}
+alwaysApply: false
+---
+
+# Frontend Architecture Rule (Vue3 + Vite + Pinia + Ant Design Vue)
+
+- Keep layering clear: `views` for pages, `components` for reusable UI, `api` for request wrappers, `stores` for global state, `utils` for pure helpers.
+- Do not call `axios` directly in views/components; all HTTP requests must go through `src/api/*` and `src/utils/request.ts`.
+- Route meta must stay consistent (`title`, `showInMenu`, `requiresAuth`, `role`, `activeMenu`) and new pages should be lazy-loaded in `src/router/index.ts`.
+- Auth state source of truth is store + token storage strategy; avoid scattered `localStorage` reads/writes in multiple pages.
+- Vue SFCs must use `script setup lang="ts"` and TypeScript types for API data/contracts.
+- Business logic should be extracted from large pages into composables or `api` modules; keep page files focused on UI orchestration.
+- Use Ant Design Vue components consistently; avoid mixing ad-hoc UI patterns across pages.
+- Reuse shared enums/types/constants instead of hard-coded strings in routes, role checks, and status rendering.
+- Error handling and user feedback must be explicit (`message.error/success`) and API failures should be surfaced with actionable text.
+- Any new environment variable must be documented in `frontend/env.example`.
+
+## Example
+
+```ts
+// ✅ Good: page delegates data access to api layer
+const list = await goodsApi.getGoodsList(params)
+```

@@ -1,0 +1,18 @@
+from typing import Generic, TypeVar
+
+from pydantic import BaseModel
+from pydantic.generics import GenericModel
+
+T = TypeVar("T")
+
+
+class ApiResponse(GenericModel, Generic[T]):
+    code: int = 0
+    message: str = "ok"
+    data: T | None = None
+    request_id: str | None = None
+
+
+class HealthData(BaseModel):
+    status: str = "ok"
+    service: str = "nextest-backend"
