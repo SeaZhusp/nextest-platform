@@ -6,7 +6,13 @@ const routes = [
     path: '/login',
     name: 'login',
     component: () => import('@/views/login/index.vue'),
-    meta: { title: '管理员登录', showInMenu: false }
+    meta: { title: '登录', showInMenu: false }
+  },
+  {
+    path: '/register',
+    name: 'register',
+    component: () => import('@/views/register/index.vue'),
+    meta: { title: '注册', showInMenu: false }
   },
   // 后台管理路由
   {
@@ -58,7 +64,6 @@ router.beforeEach((to, _from, next) => {
   // 检查是否需要管理员权限
   if (to.meta?.requiresAuth && to.meta?.role === 'admin') {
     if (!token || !userInfo) {
-      // 未登录，重定向到管理端登录页面
       next('/login')
       return
     }
@@ -78,8 +83,7 @@ router.beforeEach((to, _from, next) => {
     }
   }
   
-  // 如果已经登录且访问登录页面，重定向到管理后台
-  if (to.path === '/login' && token && userInfo) {
+  if ((to.path === '/login' || to.path === '/register') && token && userInfo) {
     next('/')
     return
   }

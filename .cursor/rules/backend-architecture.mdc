@@ -6,15 +6,16 @@ alwaysApply: true
 # Backend Architecture Rule (FastAPI)
 
 - Backend root is `backend/app`, keep strict layering: `api` -> `services` -> `repositories` -> `models`.
+- Route modules live under `app/api/endpoints/`; aggregate them in `app/api/router.py` (mounted in `main.py` with prefix `settings.api_prefix`).
 - API endpoints only handle validation/response; business logic must stay in `services`, DB access in `repositories`.
 - Keep authentication dependencies in `app/api/deps/auth.py`; prefer `Authorization: Bearer <token>`.
 - Keep shared constants in `app/constants/` (`enums.py`, `error_codes.py`); avoid magic strings/numbers.
-- All custom errors must use `app/core/exceptions.py`, and responses must follow `app/core/responses.py`.
+- All custom errors must use `app/core/exceptions.py`; HTTP error bodies are built in `app/core/exception_handlers.py` (`error_json_response`).
 - Register middleware and exception handlers centrally (`setup_middleware`, `register_exception_handlers`), app lifecycle via `lifespan`.
 - Database session management must use `app/db/session.py`; avoid creating ad-hoc engines/sessions in business code.
 - Models inherit from `app/models/base.py::ModelBase`; soft delete uses `deleted_at` (not `is_deleted`).
 - New config keys must be added to `app/core/config.py` and reflected in `backend/.env.example`.
-- Route versioning is mandatory (`/api/v1`, `/api/v2`), and breaking changes must go to a new version.
+- HTTP API is mounted under `/api` (no `/v1`/`v2` path prefix); handle breaking changes with migrations, feature flags, or coordinated client updates as needed.
 - Prefer small, focused modules; avoid building all-in-one DAL/framework-like abstractions.
 
 ## Example

@@ -5,8 +5,7 @@ class Settings(BaseSettings):
     app_name: str = "NexTest Platform API"
     environment: str = "dev"
     debug: bool = True
-    api_prefix_v1: str = "/api/v1"
-    api_prefix_v2: str = "/api/v2"
+    api_prefix: str = "/api"
     jwt_secret: str = "change-me"
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_days: int = 1

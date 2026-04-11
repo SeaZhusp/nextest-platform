@@ -1,38 +1,20 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { 
-  MenuFoldOutlined, 
-  MenuUnfoldOutlined, 
-  BellOutlined, 
+import {
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  BellOutlined,
   UserOutlined,
   LogoutOutlined,
-  SettingOutlined
+  SettingOutlined,
 } from '@ant-design/icons-vue'
-
-interface UserInfo {
-  id: number
-  username: string
-  email: string | null
-  nickname: string
-  avatar_url: string | null
-  phone: string | null
-  status: number
-  member_level: number
-  member_level_display: string
-  points: number
-  is_vip: boolean
-  vip_expired: boolean
-  last_login_at: string
-  last_login_ip: string
-  created_at: string
-  updated_at: string
-}
+import type { AuthUserInfo } from '@/api/auth'
 
 interface Props {
   collapsed: boolean
   isLoggedIn: boolean
-  currentUser: UserInfo | null
+  currentUser: AuthUserInfo | null
 }
 
 defineProps<Props>()
@@ -109,11 +91,7 @@ function handleLogout() {
           :trigger="['hover']"
         >
           <div class="user-info">
-            <a-avatar 
-              :src="currentUser?.avatar_url" 
-              :icon="UserOutlined"
-              size="small"
-            />
+            <a-avatar :icon="UserOutlined" size="small" />
             <span class="username">{{ currentUser?.username || '管理员' }}</span>
           </div>
           

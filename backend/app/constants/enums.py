@@ -3,8 +3,7 @@ from enum import Enum
 
 class UserRoleEnum(str, Enum):
     ADMIN = "admin"
-    OPERATOR = "operator"
-    VIEWER = "viewer"
+    USER = "user"
 
 
 class TokenTypeEnum(str, Enum):

@@ -5,31 +5,37 @@ export interface LoginRequest {
   password: string
 }
 
-export interface LoginResponse {
+export interface RegisterRequest {
+  username: string
+  password: string
+  password_confirm: string
+}
+
+/** 与后端 `UserPublic`（登录/注册 `data.user_info`）一致 */
+export interface AuthUserInfo {
+  id: number
+  username: string
+  email: string | null
+  nickname: string | null
+  phone: string | null
+  role: string
+  is_active: boolean
+  last_login_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AuthSessionPayload {
+  access_token: string
+  refresh_token: string
+  token_type: string
+  user_info: AuthUserInfo
+}
+
+export interface AuthSessionResponse {
   code: number
   message: string
-  data: {
-    access_token: string
-    refresh_token: string
-    user_info: {
-      id: number
-      username: string
-      email: string | null
-      nickname: string
-      avatar_url: string | null
-      phone: string | null
-      status: number
-      member_level: number
-      member_level_display: string
-      points: number
-      is_vip: boolean
-      vip_expired: boolean
-      last_login_at: string
-      last_login_ip: string
-      created_at: string
-      updated_at: string
-    }
-  }
+  data: AuthSessionPayload
 }
 
 export interface RefreshTokenRequest {
@@ -41,23 +47,31 @@ export interface RefreshTokenResponse {
   message: string
   data: {
     access_token: string
+    refresh_token: string
+    token_type?: string
   }
 }
 
-// 登录
-export function login(data: LoginRequest): Promise<LoginResponse> {
+export function login(data: LoginRequest): Promise<AuthSessionResponse> {
   return request({
     url: '/auth/login',
     method: 'POST',
-    data
+    data,
   })
 }
 
-// 刷新 Token
+export function register(data: RegisterRequest): Promise<AuthSessionResponse> {
+  return request({
+    url: '/auth/register',
+    method: 'POST',
+    data,
+  })
+}
+
 export function refreshToken(data: RefreshTokenRequest): Promise<RefreshTokenResponse> {
   return request({
     url: '/auth/refresh',
     method: 'POST',
-    data
+    data,
   })
 }

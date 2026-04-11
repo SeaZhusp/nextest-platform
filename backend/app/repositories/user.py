@@ -17,3 +17,12 @@ class UserRepository(BaseRepository[User]):
             .limit(1)
         )
         return result.scalar_one_or_none()
+
+    async def get_by_email(self, db: AsyncSession, email: str) -> User | None:
+        result = await db.execute(
+            select(User)
+            .where(User.deleted_at.is_(None))
+            .where(User.email == email)
+            .limit(1)
+        )
+        return result.scalar_one_or_none()

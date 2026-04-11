@@ -39,7 +39,7 @@ def _build_current_user(payload: dict[str, Any]) -> CurrentUser:
     return CurrentUser(
         user_id=str(payload.get("user_id") or payload.get("sub") or ""),
         username=str(username),
-        role=str(payload.get("role") or UserRoleEnum.VIEWER.value),
+        role=str(payload.get("role") or UserRoleEnum.USER.value),
         member_level=payload.get("member_level"),
         raw_payload=payload,
     )

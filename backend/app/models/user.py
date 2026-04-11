@@ -15,6 +15,11 @@ class User(ModelBase):
         nullable=False,
         comment="用户名",
     )
+    nickname: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="昵称/姓名",
+    )
     email: Mapped[str | None] = mapped_column(
         String(100),
         unique=True,
@@ -29,7 +34,7 @@ class User(ModelBase):
         nullable=True,
         comment="手机号",
     )
-    password_hash: Mapped[str] = mapped_column(
+    password: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
         comment="密码哈希",
@@ -37,7 +42,7 @@ class User(ModelBase):
     role: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
-        default=UserRoleEnum.VIEWER.value,
+        default=UserRoleEnum.USER.value,
         comment="角色",
     )
     is_active: Mapped[bool] = mapped_column(

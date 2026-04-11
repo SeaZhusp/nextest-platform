@@ -3,8 +3,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api.v1.router import router as v1_router
-from app.api.v2.router import router as v2_router
+from app.api.router import router as api_router
+from app.core.config import settings
 from app.core.exception_handlers import register_exception_handlers
 from app.core.logger import setup_logging
 from app.core.middleware import setup_middleware
@@ -32,8 +32,7 @@ def create_app() -> FastAPI:
     )
     setup_middleware(app)
     register_exception_handlers(app)
-    app.include_router(v1_router, prefix="/api/v1")
-    app.include_router(v2_router, prefix="/api/v2")
+    app.include_router(api_router, prefix=settings.api_prefix)
     return app
 
 

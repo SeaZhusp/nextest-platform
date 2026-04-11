@@ -10,7 +10,6 @@ class ApiResponse(GenericModel, Generic[T]):
     code: int = 0
     message: str = "ok"
     data: T | None = None
-    request_id: str | None = None
 
 
 class HealthData(BaseModel):

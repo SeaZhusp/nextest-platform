@@ -17,7 +17,7 @@ interface UserItem {
   username: string
   email: string
   avatar: string
-  role: 'admin' | 'user' | 'vip'
+  role: 'admin' | 'user'
   status: 'active' | 'inactive' | 'banned'
   createdAt: string
   lastLoginAt: string
@@ -176,7 +176,7 @@ onMounted(() => {
             </div>
           </div>
         </template>
-        <template #role="{ record }"><a-tag :color="record.role === 'admin' ? 'red' : record.role === 'vip' ? 'gold' : 'blue'">{{ record.role === 'admin' ? '管理员' : record.role === 'vip' ? 'VIP' : '普通用户' }}</a-tag></template>
+        <template #role="{ record }"><a-tag :color="record.role === 'admin' ? 'red' : 'blue'">{{ record.role === 'admin' ? '管理员' : '普通用户' }}</a-tag></template>
         <template #status="{ record }"><a-tag :color="record.status === 'active' ? 'green' : record.status === 'inactive' ? 'orange' : 'red'">{{ record.status === 'active' ? '正常' : record.status === 'inactive' ? '禁用' : '封禁' }}</a-tag></template>
         <template #action="{ record }">
           <a-space>

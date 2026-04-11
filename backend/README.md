@@ -26,10 +26,10 @@
 - 软删除：以 `deleted_at` 为准；查询默认应过滤已删除记录（仓储基类已按此思路封装时，业务仍要注意原生 SQL）。
 - 迁移：表结构变更通过 **Alembic** 管理；操作步骤与命令见 **[docs/database-migrations.md](docs/database-migrations.md)**。
 
-## 4. API 版本与路由
+## 4. API 路由
 
-- 对外路由挂载在 **`/api/v1`、`/api/v2`**；破坏性变更走新版本，旧版本保留兼容窗口。
-- 新增模块时在对应版本的 `router` 中聚合子路由，保持 `endpoints` 文件小而专。
+- 对外路由统一挂载在 **`/api`**（例如 `/api/auth/login`）。
+- 新增模块时在 `app/api/router.py` 中聚合子路由，具体接口放在 `app/api/endpoints/`，保持单文件小而专。
 
 ## 5. 鉴权与安全
 
@@ -40,7 +40,7 @@
 ## 6. 异常与响应
 
 - 业务/权限类错误：抛 `app/core/exceptions.py` 中定义的异常类型，并尽量使用 **`app/constants/error_codes.py`** 中的业务码（与 HTTP 状态区分）。
-- 全局处理：`app/core/exception_handlers.py` 注册；统一响应形态与 `app/core/responses.py` 保持一致，避免 endpoint 里各写一套 JSON。
+- 全局处理：`app/core/exception_handlers.py` 注册（内含错误体 `error_json_response`）；成功体仍用 `schemas` 里的 `ApiResponse`，避免 endpoint 里各写一套 JSON。
 
 ## 7. 日志与生命周期
 

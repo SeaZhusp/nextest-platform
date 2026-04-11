@@ -127,7 +127,7 @@ function updateActiveTabKey(key: string) {
 // 监听路由变化，自动添加标签页
 watch(() => route.path, (newPath) => {
   // 管理端项目的路由都是根路径下的子路由，排除登录页
-  if (newPath !== '/login') {
+  if (newPath !== '/login' && newPath !== '/register') {
     const title = route.meta?.title as string || '未知页面'
     const icon = route.meta?.icon as string
     addTab(newPath, title, icon)

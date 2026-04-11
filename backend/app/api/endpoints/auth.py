@@ -1,49 +1,46 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.constants.enums import TokenTypeEnum
 from app.core.exceptions import AuthenticationException
-from app.core.password import verify_password
 from app.core.token import TokenManager
 from app.db.session import get_db
-from app.repositories.user import UserRepository
-from app.schemas.auth import LoginRequest, RefreshTokenRequest, TokenData, TokenPairData
+from app.schemas.auth import (
+    AuthSessionData,
+    LoginRequest,
+    RefreshTokenRequest,
+    RegisterRequest,
+    TokenPairData,
+)
 from app.schemas.common import ApiResponse
+from app.services.auth_service import AuthService
 
 router = APIRouter()
 
 
-@router.post("/login", response_model=ApiResponse[TokenData])
+@router.post("/login", response_model=ApiResponse[AuthSessionData])
 async def login(
     payload: LoginRequest,
-    request: Request,
     db: AsyncSession = Depends(get_db),
-) -> ApiResponse[TokenData]:
-    user_repo = UserRepository()
-    user = await user_repo.get_by_username(db, payload.username)
-    if not user or not user.is_active:
-        raise AuthenticationException("用户名或密码错误")
-    if not verify_password(payload.password, user.password_hash):
-        raise AuthenticationException("用户名或密码错误")
+) -> ApiResponse[AuthSessionData]:
+    auth_service = AuthService()
+    data = await auth_service.login(db, payload)
+    return ApiResponse(data=data)
 
-    token = TokenManager.create_access_token(
-        {
-            "sub": str(user.id),
-            "user_id": user.id,
-            "username": user.username,
-            "role": user.role,
-        }
-    )
-    return ApiResponse(
-        data=TokenData(access_token=token),
-        request_id=getattr(request.state, "request_id", None),
-    )
+
+@router.post("/register", response_model=ApiResponse[AuthSessionData])
+async def register(
+    payload: RegisterRequest,
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[AuthSessionData]:
+    auth_service = AuthService()
+    data = await auth_service.register(db, payload)
+    return ApiResponse(data=data)
 
 
 @router.post("/refresh", response_model=ApiResponse[TokenPairData])
 def refresh_token(
     payload: RefreshTokenRequest,
-    request: Request,
 ) -> ApiResponse[TokenPairData]:
     access_token = TokenManager.refresh_access_token(payload.refresh_token)
     if not access_token:
@@ -67,5 +64,4 @@ def refresh_token(
             access_token=access_token,
             refresh_token=new_refresh_token,
         ),
-        request_id=getattr(request.state, "request_id", None),
     )

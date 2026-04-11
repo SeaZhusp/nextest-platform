@@ -14,17 +14,28 @@ export default defineConfig({
     host: true, // 允许通过局域网 IP 访问
     port: 5173,
     proxy: {
-      // API代理 - 直接转发，不包含版本号
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
-      // 静态文件代理
       '/uploads': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-      }
-    }
+      },
+    },
+  },
+  preview: {
+    port: 4173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+      '/uploads': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
   },
   // 构建配置
   build: {

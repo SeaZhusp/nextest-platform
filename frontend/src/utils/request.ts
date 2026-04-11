@@ -22,7 +22,8 @@ function handleLogout() {
   localStorage.removeItem('user_info')
   
   // 跳转到登录页面
-  if (window.location.pathname !== '/login') {
+  const p = window.location.pathname
+  if (p !== '/login' && p !== '/register') {
     window.location.href = '/login'
   }
 }
@@ -41,7 +42,7 @@ instance.interceptors.request.use(
   (config) => {
     const token = getToken()
     if (token) {
-      config.headers.token = `${token}`
+      config.headers.Authorization = `Bearer ${token}`
     }
     return config
   },

@@ -1,18 +1,29 @@
 import logging
+from typing import Any
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.responses import JSONResponse
 
 from app.constants.error_codes import ErrorCode
 from app.core.exceptions import BaseCustomException
-from app.core.responses import ErrorResponse
 
 logger = logging.getLogger(__name__)
 
 
-def _request_id(request: Request) -> str | None:
-    return getattr(request.state, "request_id", None)
+def error_json_response(
+    msg: str = "error",
+    *,
+    code: int = 400,
+    status: int = 400,
+    message: str | None = None,
+    **extra: Any,
+) -> JSONResponse:
+    if message is not None:
+        msg = message
+    body: dict[str, Any] = {"code": code, "message": msg, "data": None, **extra}
+    return JSONResponse(content=body, status_code=status)
 
 
 def _friendly_validation_message(exc: RequestValidationError) -> str:
@@ -49,62 +60,57 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(BaseCustomException)
     async def custom_exception_handler(
         request: Request, exc: BaseCustomException
-    ) -> ErrorResponse:
+    ) -> JSONResponse:
         logger.error("CustomException path=%s message=%s", request.url.path, exc.message)
-        return ErrorResponse(
-            msg=exc.message,
+        return error_json_response(
+            exc.message,
             code=exc.code,
             status=exc.status_code,
             details=exc.details,
-            request_id=_request_id(request),
         )
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(
         request: Request, exc: StarletteHTTPException
-    ) -> ErrorResponse:
+    ) -> JSONResponse:
         logger.error(
             "HTTPException path=%s status=%s detail=%s",
             request.url.path,
             exc.status_code,
             exc.detail,
         )
-        return ErrorResponse(
-            msg=str(exc.detail),
+        return error_json_response(
+            str(exc.detail),
             code=_http_status_to_code(exc.status_code),
             status=exc.status_code,
-            request_id=_request_id(request),
         )
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(
         request: Request, exc: RequestValidationError
-    ) -> ErrorResponse:
+    ) -> JSONResponse:
         logger.error("ValidationError path=%s errors=%s", request.url.path, exc.errors())
-        return ErrorResponse(
-            msg=_friendly_validation_message(exc),
+        return error_json_response(
+            _friendly_validation_message(exc),
             code=ErrorCode.VALIDATION_FAILED,
             status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             details=exc.errors(),
-            request_id=_request_id(request),
         )
 
     @app.exception_handler(ValueError)
-    async def value_exception_handler(request: Request, exc: ValueError) -> ErrorResponse:
+    async def value_exception_handler(request: Request, exc: ValueError) -> JSONResponse:
         logger.error("ValueError path=%s error=%s", request.url.path, str(exc))
-        return ErrorResponse(
-            msg=str(exc),
+        return error_json_response(
+            str(exc),
             code=ErrorCode.BAD_REQUEST,
             status=status.HTTP_400_BAD_REQUEST,
-            request_id=_request_id(request),
         )
 
     @app.exception_handler(Exception)
-    async def general_exception_handler(request: Request, exc: Exception) -> ErrorResponse:
+    async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         logger.exception("UnhandledException path=%s", request.url.path, exc_info=exc)
-        return ErrorResponse(
-            msg="服务器内部错误，请稍后重试",
+        return error_json_response(
+            "服务器内部错误，请稍后重试",
             code=ErrorCode.INTERNAL_SERVER_ERROR,
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            request_id=_request_id(request),
         )

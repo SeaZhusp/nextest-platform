@@ -2,10 +2,9 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { UserOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons-vue'
+import { UserOutlined, LockOutlined, UserAddOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import AuthBrandingAside from '@/components/auth/AuthBrandingAside.vue'
-
 const router = useRouter()
 const authStore = useAuthStore()
 
@@ -14,31 +13,48 @@ const loading = ref(false)
 const form = reactive({
   username: '',
   password: '',
+  password_confirm: '',
 })
 
 const rules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { min: 3, max: 50, message: '用户名为 3-50 个字符', trigger: 'blur' },
+  ],
+  password: [
+    { required: true, message: '请设置密码', trigger: 'blur' },
+    { min: 6, max: 100, message: '密码长度为 6-100 位', trigger: 'blur' },
+  ],
+  password_confirm: [
+    { required: true, message: '请确认密码', trigger: 'blur' },
+    { min: 6, max: 100, message: '密码长度为 6-100 位', trigger: 'blur' },
+  ],
 }
 
 async function handleSubmit() {
+  if (form.password !== form.password_confirm) {
+    message.error('两次输入的密码不一致')
+    return
+  }
   try {
     loading.value = true
-    await authStore.login({
+    await authStore.register({
       username: form.username.trim(),
       password: form.password,
+      password_confirm: form.password_confirm,
     })
-    message.success('登录成功')
+    message.success('注册成功')
     router.push('/')
   } catch (e) {
+    // 失败提示由 @/utils/request 拦截器统一处理，避免与页面内二次 toast 重复
     console.error(e)
   } finally {
     loading.value = false
   }
 }
 
-function goRegister() {
-  router.push('/register')
+function goLogin() {
+  router.push('/login')
 }
 
 onMounted(() => {
@@ -53,8 +69,8 @@ onMounted(() => {
     <AuthBrandingAside />
     <div class="auth-main">
       <div class="auth-panel">
-        <h2 class="auth-heading">欢迎回来</h2>
-        <p class="auth-sub">登录您的账户，开启智能体协作之旅</p>
+        <h2 class="auth-heading">创建账户</h2>
+        <p class="auth-sub">填写信息，开启智能体协作之旅</p>
 
         <a-form
           :model="form"
@@ -67,9 +83,8 @@ onMounted(() => {
             <a-input
               v-model:value="form.username"
               size="large"
-              placeholder="请输入用户名"
+              placeholder="请输入用户名（3-50 个字符）"
               class="auth-input"
-              @pressEnter="handleSubmit"
             >
               <template #prefix>
                 <UserOutlined class="input-icon" />
@@ -80,9 +95,20 @@ onMounted(() => {
             <a-input-password
               v-model:value="form.password"
               size="large"
-              placeholder="请输入密码"
+              placeholder="请设置密码（6-100 位）"
               class="auth-input"
-              @pressEnter="handleSubmit"
+            >
+              <template #prefix>
+                <LockOutlined class="input-icon" />
+              </template>
+            </a-input-password>
+          </a-form-item>
+          <a-form-item name="password_confirm">
+            <a-input-password
+              v-model:value="form.password_confirm"
+              size="large"
+              placeholder="请确认密码"
+              class="auth-input"
             >
               <template #prefix>
                 <LockOutlined class="input-icon" />
@@ -98,18 +124,18 @@ onMounted(() => {
               class="btn-primary"
               :loading="loading"
             >
-              <LoginOutlined />
-              登录
+              <UserAddOutlined />
+              完成注册
             </a-button>
           </a-form-item>
         </a-form>
 
         <p class="auth-footer-link">
-          还没有账户？
-          <a type="link" class="link" @click="goRegister">立即注册</a>
+          已有账户？
+          <a type="link" class="link" @click="goLogin">立即登录</a>
         </p>
 
-        <p class="copyright">© 2026 NEXTest. All rights reserved.</p>
+        <p class="copyright">© 2026 NEXTest. 保留所有权利。</p>
       </div>
     </div>
   </div>
@@ -155,7 +181,7 @@ onMounted(() => {
 }
 
 .auth-sub {
-  margin: 0 0 32px;
+  margin: 0 0 28px;
   font-size: 14px;
   color: #6b7280;
   line-height: 1.5;
@@ -163,7 +189,7 @@ onMounted(() => {
 
 .auth-form {
   :deep(.ant-form-item) {
-    margin-bottom: 20px;
+    margin-bottom: 18px;
   }
 }
 
@@ -196,7 +222,7 @@ onMounted(() => {
 }
 
 .auth-footer-link {
-  margin: 24px 0 0;
+  margin: 8px 0 0;
   text-align: center;
   font-size: 14px;
   color: #6b7280;
@@ -212,7 +238,7 @@ onMounted(() => {
 }
 
 .copyright {
-  margin: 32px 0 0;
+  margin: 28px 0 0;
   text-align: center;
   font-size: 12px;
   color: #9ca3af;
