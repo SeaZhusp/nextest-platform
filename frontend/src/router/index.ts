@@ -14,25 +14,26 @@ const routes = [
     component: () => import('@/views/register/index.vue'),
     meta: { title: '注册', showInMenu: false }
   },
-  // 后台管理路由
+  // 后台管理路由（requiresAuth：登录即可；meta.role 与 localStorage user_info.user_type 一致）
   {
     path: '/',
     component: Layout,
-    meta: { requiresAuth: true, role: 'admin' },
+    meta: { requiresAuth: true },
     children: [
       {
         path: '',
         name: 'dashboard',
         component: () => import('@/views/dashboard/index.vue'),
-        meta: { title: '仪表盘', icon: 'DashboardOutlined' }
+        meta: { title: '首页', icon: 'DashboardOutlined', showInMenu: true }
       },
       {
         path: 'system',
         name: 'system',
-        meta: { 
+        meta: {
           title: '系统管理',
           icon: 'SettingOutlined',
-          showInMenu: true
+          showInMenu: true,
+          role: 'admin'
         },
         children: [
           {
@@ -42,7 +43,8 @@ const routes = [
             meta: {
               title: '用户管理',
               icon: 'UserOutlined',
-              showInMenu: true
+              showInMenu: true,
+              role: 'admin'
             }
           }
         ]
@@ -56,38 +58,50 @@ const router = createRouter({
   routes,
 })
 
+function parseStoredUserInfo(raw: string): { user_type: string } | null {
+  try {
+    const u = JSON.parse(raw) as { user_type?: string }
+    if (u && typeof u.user_type === 'string') {
+      return { user_type: u.user_type }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 // 路由守卫
 router.beforeEach((to, _from, next) => {
   const token = localStorage.getItem('access_token')
-  const userInfo = localStorage.getItem('user_info')
-  
-  // 检查是否需要管理员权限
-  if (to.meta?.requiresAuth && to.meta?.role === 'admin') {
-    if (!token || !userInfo) {
+  const userInfoRaw = localStorage.getItem('user_info')
+
+  const needsAuth = to.matched.some((r) => r.meta.requiresAuth)
+
+  if (needsAuth) {
+    if (!token || !userInfoRaw) {
       next('/login')
       return
     }
-    
-    // 可以在这里添加更详细的角色验证
-    try {
-      JSON.parse(userInfo) // 验证用户信息格式
-      // 这里可以检查用户角色是否为管理员
-      // if (user.role !== 'admin') {
-      //   next('/login')
-      //   return
-      // }
-    } catch (error) {
-      console.error('解析用户信息失败:', error)
+    const user = parseStoredUserInfo(userInfoRaw)
+    if (!user) {
+      console.error('解析用户信息失败')
       next('/login')
       return
+    }
+    for (const record of to.matched) {
+      const requiredRole = record.meta.role
+      if (requiredRole && user.user_type !== requiredRole) {
+        next('/')
+        return
+      }
     }
   }
-  
-  if ((to.path === '/login' || to.path === '/register') && token && userInfo) {
+
+  if ((to.path === '/login' || to.path === '/register') && token && userInfoRaw) {
     next('/')
     return
   }
-  
+
   next()
 })
 

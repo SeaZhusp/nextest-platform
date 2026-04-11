@@ -9,6 +9,7 @@ alwaysApply: true
 - Route modules live under `app/api/endpoints/`; aggregate them in `app/api/router.py` (mounted in `main.py` with prefix `settings.api_prefix`).
 - API endpoints only handle validation/response; business logic must stay in `services`, DB access in `repositories`.
 - Keep authentication dependencies in `app/api/deps/auth.py`; prefer `Authorization: Bearer <token>`.
+- **List/pagination query params** must use dependency injection: reuse `app/api/deps/query.py::Paging` (`page`, `size` only). Sorting stays in `services` / `repositories` (fixed order or validated logic); if an endpoint ever needs client-controlled sort, add explicit, validated query params on that route—never pass raw sort field strings through a generic dep into SQL. Pass `paging.page`, `paging.size`, etc. into `services`; do **not** import `Paging` into the service layer.
 - Keep shared constants in `app/constants/` (`enums.py`, `error_codes.py`); avoid magic strings/numbers.
 - All custom errors must use `app/core/exceptions.py`; HTTP error bodies are built in `app/core/exception_handlers.py` (`error_json_response`).
 - Register middleware and exception handlers centrally (`setup_middleware`, `register_exception_handlers`), app lifecycle via `lifespan`.
@@ -18,11 +19,21 @@ alwaysApply: true
 - HTTP API is mounted under `/api` (no `/v1`/`v2` path prefix); handle breaking changes with migrations, feature flags, or coordinated client updates as needed.
 - Prefer small, focused modules; avoid building all-in-one DAL/framework-like abstractions.
 
-## Example
+## Examples
 
 ```python
 # ✅ Good: endpoint delegates business logic
 @router.post("/login")
 async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
     return await auth_service.login(db, payload)
+```
+
+```python
+# ✅ Good: paginated list — Paging DI, service gets plain values (sort inside service/repo)
+@router.get("")
+async def list_items(
+    db: AsyncSession = Depends(get_db),
+    paging: Annotated[Paging, Depends()],
+):
+    return await item_service.list_items(db, page=paging.page, size=paging.size)
 ```

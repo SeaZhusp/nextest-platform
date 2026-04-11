@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { UserOutlined, LockOutlined, UserAddOutlined } from '@ant-design/icons-vue'
+import { UserOutlined, SmileOutlined, LockOutlined, UserAddOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import AuthBrandingAside from '@/components/auth/AuthBrandingAside.vue'
 const router = useRouter()
@@ -12,6 +12,7 @@ const loading = ref(false)
 
 const form = reactive({
   username: '',
+  nickname: '',
   password: '',
   password_confirm: '',
 })
@@ -19,7 +20,11 @@ const form = reactive({
 const rules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 50, message: '用户名为 3-50 个字符', trigger: 'blur' },
+    { min: 3, max: 50, message: '用户名为 4-50 位', trigger: 'blur' },
+  ],
+  nickname: [
+    { required: true, message: '请输入昵称', trigger: 'blur' },
+    { min: 2, max: 50, message: '昵称长度为 2-50 位', trigger: 'blur' },
   ],
   password: [
     { required: true, message: '请设置密码', trigger: 'blur' },
@@ -40,13 +45,13 @@ async function handleSubmit() {
     loading.value = true
     await authStore.register({
       username: form.username.trim(),
+      nickname: form.nickname.trim(),
       password: form.password,
       password_confirm: form.password_confirm,
     })
     message.success('注册成功')
     router.push('/')
   } catch (e) {
-    // 失败提示由 @/utils/request 拦截器统一处理，避免与页面内二次 toast 重复
     console.error(e)
   } finally {
     loading.value = false
@@ -88,6 +93,18 @@ onMounted(() => {
             >
               <template #prefix>
                 <UserOutlined class="input-icon" />
+              </template>
+            </a-input>
+          </a-form-item>
+          <a-form-item name="nickname">
+            <a-input
+              v-model:value="form.nickname"
+              size="large"
+              placeholder="请输入昵称（1-50 个字符）"
+              class="auth-input"
+            >
+              <template #prefix>
+                <SmileOutlined class="input-icon" />
               </template>
             </a-input>
           </a-form-item>

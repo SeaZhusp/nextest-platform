@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   CloseOutlined,
@@ -35,35 +35,24 @@ const emit = defineEmits<{
 const router = useRouter()
 const route = useRoute()
 
-// 标签页滚动位置
-const scrollPosition = ref(0)
-const tabContainerRef = ref<HTMLElement>()
+const tabListRef = ref<HTMLElement>()
 
-// 计算可见的标签页
-const visibleTabs = computed(() => {
-  const containerWidth = tabContainerRef.value?.clientWidth || 0
-  const tabWidth = 120 // 每个标签页的宽度
-  const maxVisible = Math.floor(containerWidth / tabWidth)
-  
-  if (props.tabs.length <= maxVisible) {
-    return props.tabs
+const canScrollLeft = ref(false)
+const canScrollRight = ref(false)
+
+function updateScrollArrows() {
+  const el = tabListRef.value
+  if (!el) {
+    canScrollLeft.value = false
+    canScrollRight.value = false
+    return
   }
-  
-  const start = scrollPosition.value
-  const end = Math.min(start + maxVisible, props.tabs.length)
-  return props.tabs.slice(start, end)
-})
+  const { scrollLeft, clientWidth, scrollWidth } = el
+  canScrollLeft.value = scrollLeft > 2
+  canScrollRight.value = scrollLeft + clientWidth < scrollWidth - 2
+}
 
-// 是否可以向左滚动
-const canScrollLeft = computed(() => scrollPosition.value > 0)
-
-// 是否可以向右滚动
-const canScrollRight = computed(() => {
-  const containerWidth = tabContainerRef.value?.clientWidth || 0
-  const tabWidth = 120
-  const maxVisible = Math.floor(containerWidth / tabWidth)
-  return scrollPosition.value + maxVisible < props.tabs.length
-})
+let listResizeObserver: ResizeObserver | null = null
 
 // 切换标签页
 function handleTabClick(tab: TabItem) {
@@ -95,52 +84,82 @@ function handleCloseAllTabs(event: Event) {
   emit('closeAllTabs')
 }
 
-// 向左滚动
-function scrollLeft() {
-  if (canScrollLeft.value) {
-    scrollPosition.value = Math.max(0, scrollPosition.value - 1)
-  }
+const scrollStepPx = 200
+
+function scrollTabsLeft() {
+  tabListRef.value?.scrollBy({ left: -scrollStepPx, behavior: 'smooth' })
 }
 
-// 向右滚动
-function scrollRight() {
-  if (canScrollRight.value) {
-    scrollPosition.value = Math.min(
-      props.tabs.length - Math.floor((tabContainerRef.value?.clientWidth || 0) / 120),
-      scrollPosition.value + 1
-    )
-  }
+function scrollTabsRight() {
+  tabListRef.value?.scrollBy({ left: scrollStepPx, behavior: 'smooth' })
 }
 
-// 监听路由变化，确保当前标签页可见
-watch(() => route.path, (newPath) => {
-  const currentTab = props.tabs.find(tab => tab.path === newPath)
-  if (currentTab) {
-    const tabIndex = props.tabs.findIndex(tab => tab.key === currentTab.key)
-    const containerWidth = tabContainerRef.value?.clientWidth || 0
-    const tabWidth = 120
-    const maxVisible = Math.floor(containerWidth / tabWidth)
-    
-    if (tabIndex < scrollPosition.value) {
-      scrollPosition.value = tabIndex
-    } else if (tabIndex >= scrollPosition.value + maxVisible) {
-      scrollPosition.value = tabIndex - maxVisible + 1
-    }
+function scrollActiveTabIntoView() {
+  const current = props.tabs.find((tab) => tab.path === route.path)
+  const list = tabListRef.value
+  if (!current || !list) return
+  const el = Array.from(list.querySelectorAll<HTMLElement>('[data-tab-key]')).find(
+    (node) => node.getAttribute('data-tab-key') === current.key,
+  )
+  el?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' })
+}
+
+watch(
+  () => route.path,
+  async () => {
+    await nextTick()
+    scrollActiveTabIntoView()
+    updateScrollArrows()
+  },
+)
+
+watch(
+  () => props.tabs,
+  async () => {
+    await nextTick()
+    updateScrollArrows()
+    scrollActiveTabIntoView()
+  },
+  { deep: true },
+)
+
+watch(
+  () => props.activeKey,
+  async () => {
+    await nextTick()
+    scrollActiveTabIntoView()
+  },
+)
+
+onMounted(() => {
+  const el = tabListRef.value
+  if (el && typeof ResizeObserver !== 'undefined') {
+    listResizeObserver = new ResizeObserver(() => updateScrollArrows())
+    listResizeObserver.observe(el)
   }
+  void nextTick(() => {
+    scrollActiveTabIntoView()
+    updateScrollArrows()
+  })
+})
+
+onUnmounted(() => {
+  listResizeObserver?.disconnect()
+  listResizeObserver = null
 })
 </script>
 
 <template>
   <div class="tab-view">
     <!-- 标签页容器 -->
-    <div class="tab-container" ref="tabContainerRef">
+    <div class="tab-container">
       <!-- 滚动按钮 -->
       <div v-if="props.tabs.length > 0" class="scroll-buttons">
         <a-button 
           type="text" 
           size="small" 
           :disabled="!canScrollLeft"
-          @click="scrollLeft"
+          @click="scrollTabsLeft"
           class="scroll-btn"
         >
           <LeftOutlined />
@@ -149,7 +168,7 @@ watch(() => route.path, (newPath) => {
           type="text" 
           size="small" 
           :disabled="!canScrollRight"
-          @click="scrollRight"
+          @click="scrollTabsRight"
           class="scroll-btn"
         >
           <RightOutlined />
@@ -157,10 +176,15 @@ watch(() => route.path, (newPath) => {
       </div>
 
       <!-- 标签页列表 -->
-      <div class="tab-list">
+      <div
+        ref="tabListRef"
+        class="tab-list"
+        @scroll.passive="updateScrollArrows"
+      >
         <div
-          v-for="tab in visibleTabs"
+          v-for="tab in props.tabs"
           :key="tab.key"
+          :data-tab-key="tab.key"
           :class="['tab-item', { active: props.activeKey === tab.key }]"
           @click="handleTabClick(tab)"
         >
@@ -248,14 +272,26 @@ watch(() => route.path, (newPath) => {
 }
 
 .tab-list {
+  flex: 1;
+  min-width: 0;
   display: flex;
   gap: 2px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #d9d9d9;
+    border-radius: 2px;
+  }
 }
 
 .tab-item {
-  min-width: 120px;
-  max-width: 200px;
+  flex: 0 0 auto;
+  max-width: 280px;
   height: 32px;
   background: #fff;
   border: 1px solid #d9d9d9;
@@ -291,7 +327,8 @@ watch(() => route.path, (newPath) => {
 }
 
 .tab-title {
-  flex: 1;
+  flex: 0 1 auto;
+  min-width: 0;
   font-size: 12px;
   color: #666;
   overflow: hidden;
@@ -334,7 +371,7 @@ watch(() => route.path, (newPath) => {
   }
   
   .tab-item {
-    min-width: 100px;
+    max-width: 220px;
   }
   
   .tab-title {

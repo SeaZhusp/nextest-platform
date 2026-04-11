@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import {
   DashboardOutlined,
   ShoppingOutlined,
@@ -31,6 +32,15 @@ const emit = defineEmits<{
 
 const router = useRouter()
 const route = useRoute()
+const authStore = useAuthStore()
+
+function canSeeRouteMeta(meta: Record<string, unknown> | undefined): boolean {
+  const role = meta?.role as string | undefined
+  if (!role) {
+    return true
+  }
+  return authStore.currentUser?.user_type === role
+}
 
 // 图标映射
 const iconMap: Record<string, any> = {
@@ -49,7 +59,7 @@ const menuItems = computed<MenuItem[]>(() => {
   const children = (adminRoute?.children || []) as any[]
   
   return children
-    .filter((r: any) => r.meta?.showInMenu !== false)
+    .filter((r: any) => r.meta?.showInMenu !== false && canSeeRouteMeta(r.meta))
     .map((r: any) => {
       const rawPath: string = r.path || ''
       // 对于根路径（仪表盘），使用空字符串作为 key，这样点击时会跳转到根路径
@@ -60,8 +70,11 @@ const menuItems = computed<MenuItem[]>(() => {
       
       // 如果有子菜单，递归处理
       const childRoutes = r.children || []
-      const children = childRoutes
-        .filter((child: any) => child.meta?.showInMenu !== false)
+      const subChildren = childRoutes
+        .filter(
+          (child: any) =>
+            child.meta?.showInMenu !== false && canSeeRouteMeta(child.meta)
+        )
         .map((child: any) => {
           const childPath: string = child.path || ''
           const childKey = childPath === '' ? key : `${key}/${childPath}`
@@ -69,13 +82,18 @@ const menuItems = computed<MenuItem[]>(() => {
           return { key: childKey, label: childLabel }
         })
       
+      if (subChildren.length === 0 && childRoutes.length > 0) {
+        return null
+      }
+
       return {
         key,
         label,
         icon,
-        children: children.length > 0 ? children : undefined
+        children: subChildren.length > 0 ? subChildren : undefined
       }
     })
+    .filter((item): item is NonNullable<typeof item> => item !== null)
 })
 
 // 计算当前应该展开的菜单

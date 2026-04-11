@@ -3,7 +3,7 @@ from typing import Any
 
 import jwt
 
-from app.constants.enums import TokenTypeEnum
+from app.constants.enums import TokenTypeEnum, UserRoleEnum
 from app.core.config import settings
 
 
@@ -59,12 +59,13 @@ class TokenManager:
         if not payload:
             return None
 
+        ut = payload.get("user_type") or payload.get("role") or UserRoleEnum.USER.value
         access_data = {
             "sub": payload.get("sub"),
             "username": payload.get("username"),
             "user_id": payload.get("user_id"),
             "member_level": payload.get("member_level"),
-            "role": payload.get("role"),
+            "user_type": ut,
         }
         return TokenManager.create_access_token(access_data)
 
@@ -94,10 +95,10 @@ class TokenManager:
         return exp_time < datetime.now(timezone.utc)
 
 
-def create_access_token(subject: str, role: str) -> str:
+def create_access_token(subject: str, user_type: str) -> str:
     """兼容现有调用方式，创建 access token。"""
     expire_delta = timedelta(minutes=settings.access_token_expire_minutes)
     return TokenManager.create_access_token(
-        data={"sub": subject, "role": role},
+        data={"sub": subject, "user_type": user_type},
         expires_delta=expire_delta,
     )

@@ -19,7 +19,7 @@ def user_to_public(user: User) -> UserPublic:
         email=user.email,
         nickname=user.nickname,
         phone=user.phone,
-        role=user.role,
+        user_type=user.user_type,
         is_active=user.is_active,
         last_login_at=user.last_login_at.isoformat() if user.last_login_at else None,
         created_at=user.created_at.isoformat() if user.created_at else "",
@@ -32,7 +32,7 @@ def build_session_for_user(user: User) -> AuthSessionData:
         "sub": str(user.id),
         "user_id": user.id,
         "username": user.username,
-        "role": user.role,
+        "user_type": user.user_type,
     }
     access_token = TokenManager.create_access_token(base_claims)
     refresh_token = TokenManager.create_refresh_token(base_claims)
@@ -68,9 +68,10 @@ class AuthService:
             db,
             {
                 "username": payload.username.strip(),
+                "nickname": payload.nickname,
                 "email": None,
                 "password": hash_password(payload.password),
-                "role": UserRoleEnum.USER.value,
+                "user_type": UserRoleEnum.USER.value,
                 "is_active": True,
             },
         )

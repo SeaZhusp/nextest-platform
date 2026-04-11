@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.constants.enums import TokenTypeEnum
+from app.constants.enums import TokenTypeEnum, UserRoleEnum
 from app.core.exceptions import AuthenticationException
 from app.core.token import TokenManager
 from app.db.session import get_db
@@ -50,13 +50,14 @@ def refresh_token(
     if not refresh_payload:
         raise AuthenticationException("refresh token 无效或已过期")
 
+    ut = refresh_payload.get("user_type") or refresh_payload.get("role") or UserRoleEnum.USER.value
     new_refresh_token = TokenManager.create_refresh_token(
         {
             "sub": refresh_payload.get("sub"),
             "username": refresh_payload.get("username"),
             "user_id": refresh_payload.get("user_id"),
             "member_level": refresh_payload.get("member_level"),
-            "role": refresh_payload.get("role"),
+            "user_type": ut,
         }
     )
     return ApiResponse(

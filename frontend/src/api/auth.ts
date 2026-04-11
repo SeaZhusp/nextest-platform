@@ -7,6 +7,7 @@ export interface LoginRequest {
 
 export interface RegisterRequest {
   username: string
+  nickname: string
   password: string
   password_confirm: string
 }
@@ -18,7 +19,7 @@ export interface AuthUserInfo {
   email: string | null
   nickname: string | null
   phone: string | null
-  role: string
+  user_type: string
   is_active: boolean
   last_login_at: string | null
   created_at: string

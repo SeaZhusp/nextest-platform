@@ -39,11 +39,12 @@ class User(ModelBase):
         nullable=False,
         comment="密码哈希",
     )
-    role: Mapped[str] = mapped_column(
+    user_type: Mapped[str] = mapped_column(
+        "user_type",
         String(20),
         nullable=False,
         default=UserRoleEnum.USER.value,
-        comment="角色",
+        comment="用户类型",
     )
     is_active: Mapped[bool] = mapped_column(
         Boolean,

@@ -12,7 +12,7 @@ from app.core.token import TokenManager
 class CurrentUser:
     user_id: str
     username: str
-    role: str
+    user_type: str
     member_level: str | None = None
     raw_payload: dict[str, Any] | None = None
 
@@ -36,10 +36,11 @@ def _build_current_user(payload: dict[str, Any]) -> CurrentUser:
     username = payload.get("username") or payload.get("sub")
     if not username:
         raise AuthenticationException("无效认证令牌")
+    ut = payload.get("user_type") or payload.get("role")
     return CurrentUser(
         user_id=str(payload.get("user_id") or payload.get("sub") or ""),
         username=str(username),
-        role=str(payload.get("role") or UserRoleEnum.USER.value),
+        user_type=str(ut or UserRoleEnum.USER.value),
         member_level=payload.get("member_level"),
         raw_payload=payload,
     )
@@ -54,7 +55,7 @@ def get_current_user(authorization: str = Header(default="")) -> CurrentUser:
 
 
 def require_admin(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
-    if user.role != UserRoleEnum.ADMIN.value:
+    if user.user_type != UserRoleEnum.ADMIN.value:
         raise AuthorizationException("需要管理员权限")
     return user
 
