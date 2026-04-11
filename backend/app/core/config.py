@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["*"]
     trusted_hosts: list[str] = ["*"]
     database_url: str = (
-        "mysql+asyncmy://nextest:nextest@127.0.0.1:3306/nextest"
+        "mysql+asyncmy://root:123456@127.0.0.1:3306/nextest"
         "?charset=utf8mb4"
     )
 
