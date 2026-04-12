@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps.auth import CurrentUser, get_current_user
 from app.constants.enums import TokenTypeEnum, UserRoleEnum
 from app.core.exceptions import AuthenticationException
 from app.core.token import TokenManager
@@ -11,11 +12,30 @@ from app.schemas.auth import (
     RefreshTokenRequest,
     RegisterRequest,
     TokenPairData,
+    UserPublic,
 )
 from app.schemas.common import ApiResponse
 from app.services.auth_service import AuthService
 
 router = APIRouter()
+
+
+def _current_user_id(current: CurrentUser) -> int:
+    uid_raw = (current.user_id or "").strip()
+    if not uid_raw.isdigit():
+        raise AuthenticationException("无效用户信息")
+    return int(uid_raw)
+
+
+@router.get("/me", response_model=ApiResponse[UserPublic])
+async def get_me(
+    db: AsyncSession = Depends(get_db),
+    current: CurrentUser = Depends(get_current_user),
+) -> ApiResponse[UserPublic]:
+    """当前登录用户资料（以数据库为准，供前端刷新覆盖本地缓存）。"""
+    auth_service = AuthService()
+    data = await auth_service.get_me(db, _current_user_id(current))
+    return ApiResponse(data=data)
 
 
 @router.post("/login", response_model=ApiResponse[AuthSessionData])

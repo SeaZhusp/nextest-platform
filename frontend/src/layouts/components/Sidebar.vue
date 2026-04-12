@@ -9,7 +9,8 @@ import {
   SettingOutlined,
   DatabaseOutlined,
   AppstoreOutlined,
-  TeamOutlined
+  TeamOutlined,
+  RobotOutlined
 } from '@ant-design/icons-vue'
 
 export interface MenuItem {
@@ -49,7 +50,8 @@ const iconMap: Record<string, any> = {
   'UserOutlined': UserOutlined,
   'SettingOutlined': SettingOutlined,
   'AppstoreOutlined': AppstoreOutlined,
-  'TeamOutlined': TeamOutlined
+  'TeamOutlined': TeamOutlined,
+  'RobotOutlined': RobotOutlined
 }
 
 // 从路由配置构建菜单项

@@ -83,3 +83,11 @@ class AuthService:
 
         await db.refresh(user)
         return build_session_for_user(user)
+
+    async def get_me(self, db: AsyncSession, user_id: int) -> UserPublic:
+        user = await self._users.get_by_id(db, user_id)
+        if not user:
+            raise AuthenticationException("用户不存在或已删除")
+        if not user.is_active:
+            raise AuthenticationException("账号已禁用")
+        return user_to_public(user)

@@ -27,6 +27,12 @@ const routes = [
         meta: { title: '首页', icon: 'DashboardOutlined', showInMenu: true }
       },
       {
+        path: 'agent',
+        name: 'agent',
+        component: () => import('@/views/agent/index.vue'),
+        meta: { title: '测试智能体', icon: 'RobotOutlined', showInMenu: true }
+      },
+      {
         path: 'system',
         name: 'system',
         meta: {

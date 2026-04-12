@@ -4,6 +4,7 @@ import {
   login as loginApi,
   register as registerApi,
   refreshToken as refreshTokenApi,
+  fetchCurrentUser,
 } from '@/api/auth'
 import type { AuthUserInfo, RegisterRequest } from '@/api/auth'
 
@@ -38,6 +39,28 @@ export const useAuthStore = defineStore('auth', () => {
         console.error('解析用户信息失败:', error)
         clearAuth()
       }
+    }
+  }
+
+  /** 仅用服务端返回的资料覆盖本地 user_info（不改 token） */
+  function setUserProfile(user: User) {
+    currentUser.value = user
+    localStorage.setItem('user_info', JSON.stringify(user))
+  }
+
+  /** 有 access_token 时拉取当前用户，防止本地 user_info 被篡改；401 由 request 拦截器处理 */
+  async function syncUserFromServerIfLoggedIn() {
+    if (!accessToken.value) {
+      return
+    }
+    try {
+      const res = await fetchCurrentUser()
+      if (!isSuccessCode(res.code) || res.data == null) {
+        return
+      }
+      setUserProfile(res.data)
+    } catch {
+      // 网络错误等：保留 init 读到的本地信息，避免完全无法进入
     }
   }
 
@@ -130,5 +153,6 @@ export const useAuthStore = defineStore('auth', () => {
     register,
     logout,
     refreshAccessToken,
+    syncUserFromServerIfLoggedIn,
   }
 })

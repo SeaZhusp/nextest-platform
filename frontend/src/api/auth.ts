@@ -39,6 +39,13 @@ export interface AuthSessionResponse {
   data: AuthSessionPayload
 }
 
+/** `GET /auth/me` 与后端 `UserPublic` 一致 */
+export interface AuthUserInfoResponse {
+  code: number
+  message: string
+  data?: AuthUserInfo
+}
+
 export interface RefreshTokenRequest {
   refresh_token: string
 }
@@ -51,6 +58,13 @@ export interface RefreshTokenResponse {
     refresh_token: string
     token_type?: string
   }
+}
+
+export function fetchCurrentUser(): Promise<AuthUserInfoResponse> {
+  return request({
+    url: '/auth/me',
+    method: 'GET',
+  })
 }
 
 export function login(data: LoginRequest): Promise<AuthSessionResponse> {
