@@ -96,13 +96,14 @@ function onSave() {
 
 <style lang="scss" scoped>
 .agent-output {
-  flex: 1.25;
+  flex: 1;
   min-width: 0;
+  min-height: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
   background: #1e1e1e;
   color: #d4d4d4;
-  border-right: 1px solid #333;
 }
 
 .agent-output__toolbar {

@@ -32,7 +32,7 @@ async def chat(
         payload.llm_profile_id,
         payload.temperature,
     )
-    data = await process_agent_chat(payload, llm_cfg)
+    data = await process_agent_chat(payload, llm_cfg, db)
     return ApiResponse(data=data)
 
 
@@ -54,7 +54,7 @@ async def chat_stream(
         payload.temperature,
     )
     return StreamingResponse(
-        iter_agent_chat_sse(payload, llm_cfg),
+        iter_agent_chat_sse(db, payload, llm_cfg),
         media_type="text/event-stream; charset=utf-8",
         headers={
             "Cache-Control": "no-cache",

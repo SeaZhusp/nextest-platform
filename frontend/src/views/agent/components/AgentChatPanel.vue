@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   PlusOutlined,
   HistoryOutlined,
@@ -11,11 +11,15 @@ import {
 } from '@ant-design/icons-vue'
 import type { AgentChatMessage } from '../types'
 import type { UserLlmProfileOut } from '@/schemas/userLlmProfile'
+import type { SkillMetaOut } from '@/schemas/skill'
 import LlmProviderIcon from '@/components/LlmProviderIcon.vue'
 import SvgIcon from '@/components/SvgIcon.vue'
 import { providerMeta } from '@/config/llmProviders'
 
 const props = defineProps<{
+  selectedSkillId: string
+  skills: SkillMetaOut[]
+  skillsLoading: boolean
   messages: AgentChatMessage[]
   sending: boolean
   profiles: UserLlmProfileOut[]
@@ -30,7 +34,94 @@ const emit = defineEmits<{
   send: []
   'new-session': []
   history: []
+  'skill-change': [skillId: string]
 }>()
+
+const skillPopoverOpen = ref(false)
+const modelPopoverOpen = ref(false)
+const tempPopoverOpen = ref(false)
+
+const skillSelectOptions = computed(() => {
+  const base = props.skills.map((s) => ({
+    label: s.name && s.name.trim() ? s.name.trim() : '未命名技能',
+    value: s.skill_id
+  }))
+  const cur = props.selectedSkillId?.trim() || 'test_case_gen'
+  if (!base.some((o) => o.value === cur)) {
+    return [{ label: '当前技能（列表未同步）', value: cur }, ...base]
+  }
+  if (!base.length) {
+    return [{ label: '测试用例生成', value: 'test_case_gen' }]
+  }
+  return base
+})
+
+const currentSkillLabel = computed(() => {
+  const sid = props.selectedSkillId?.trim() || 'test_case_gen'
+  const row = props.skills.find((s) => s.skill_id === sid)
+  if (row) {
+    return row.name?.trim() ? row.name.trim() : '未命名技能'
+  }
+  return '当前技能（列表未同步）'
+})
+
+const currentModelLabel = computed(() => {
+  if (selectedProfileId.value == null) return '请选择模型'
+  const p = props.profiles.find((x) => x.id === selectedProfileId.value)
+  return p?.display_name ?? '请选择模型'
+})
+
+const temperatureTagText = computed(() => `温度 ${temperature.value.toFixed(1)}`)
+
+function onSkillPick(v: string | number) {
+  emit('skill-change', String(v))
+  skillPopoverOpen.value = false
+}
+
+function onModelPick(v: string | number) {
+  const n = typeof v === 'number' ? v : Number(v)
+  selectedProfileId.value = Number.isFinite(n) ? n : null
+  modelPopoverOpen.value = false
+}
+
+function openSkillPopover() {
+  modelPopoverOpen.value = false
+  tempPopoverOpen.value = false
+  skillPopoverOpen.value = true
+}
+
+function openModelPopover() {
+  skillPopoverOpen.value = false
+  tempPopoverOpen.value = false
+  modelPopoverOpen.value = true
+}
+
+function openTempPopover() {
+  skillPopoverOpen.value = false
+  modelPopoverOpen.value = false
+  tempPopoverOpen.value = true
+}
+
+watch(skillPopoverOpen, (open) => {
+  if (open) {
+    modelPopoverOpen.value = false
+    tempPopoverOpen.value = false
+  }
+})
+
+watch(modelPopoverOpen, (open) => {
+  if (open) {
+    skillPopoverOpen.value = false
+    tempPopoverOpen.value = false
+  }
+})
+
+watch(tempPopoverOpen, (open) => {
+  if (open) {
+    skillPopoverOpen.value = false
+    modelPopoverOpen.value = false
+  }
+})
 
 const sendDisabled = computed(
   () =>
@@ -113,64 +204,125 @@ function onHistory() {
           @pressEnter.exact.prevent="onSend"
         />
         <div class="composer-card__divider" />
-        <div class="composer-card__toolbar">
-          <div class="composer-card__model-wrap">
-            <a-select
-              v-model:value="selectedProfileId"
-              :bordered="false"
-              class="composer-card__model"
-              :loading="profilesLoading"
-              :disabled="profiles.length === 0 && !profilesLoading"
-              option-label-prop="label"
-              :dropdown-match-select-width="false"
-              :dropdown-style="{ minWidth: '260px', maxWidth: '360px' }"
-              popup-class-name="agent-chat-model-dropdown"
-              :placeholder="profiles.length === 0 ? '暂无模型配置' : '选择模型'"
-            >
-              <template #optionLabel="opt">
-                <span v-if="opt" class="composer-card__selection">
-                  <LlmProviderIcon
-                    v-if="opt.provider"
-                    :meta="providerMeta(opt.provider)"
-                    :size="18"
-                  />
-                  <span class="composer-card__selection-text">{{ opt.label }}</span>
-                </span>
-              </template>
-              <a-select-opt-group v-if="profiles.length" label="我的配置">
-                <a-select-option
-                  v-for="p in profiles"
-                  :key="p.id"
-                  :value="p.id"
-                  :label="p.display_name"
-                  :provider="p.provider"
-                >
-                  <div class="composer-card__opt">
-                    <LlmProviderIcon :meta="providerMeta(p.provider)" :size="18" />
-                    <span class="composer-card__opt-name">{{ p.display_name }}</span>
-                    <a-tag color="success" class="composer-card__opt-tag">我的</a-tag>
-                  </div>
-                </a-select-option>
-              </a-select-opt-group>
-            </a-select>
-          </div>
 
-          <a-popover trigger="click" placement="topLeft" overlay-class-name="agent-chat__temp-pop">
+        <div class="composer-card__toolbar">
+          <a-popover
+            v-model:open="skillPopoverOpen"
+            trigger="click"
+            placement="topLeft"
+            overlay-class-name="composer-pop-overlay"
+          >
+            <template #content>
+              <div class="composer-pop__body">
+                <div class="composer-pop__title">选择技能</div>
+                <a-select
+                  :value="selectedSkillId"
+                  show-search
+                  :options="skillSelectOptions"
+                  option-filter-prop="label"
+                  class="composer-pop__select"
+                  :loading="skillsLoading"
+                  :dropdown-match-select-width="false"
+                  :dropdown-style="{ minWidth: '260px', maxWidth: '360px' }"
+                  popup-class-name="agent-chat-skill-dropdown"
+                  placeholder="请选择技能"
+                  @update:value="onSkillPick"
+                />
+              </div>
+            </template>
+            <a-tooltip title="请选择技能">
+              <a-button
+                type="text"
+                class="composer-icon-btn"
+                :class="{ 'composer-icon-btn--active': skillPopoverOpen }"
+              >
+                <SvgIcon name="skill" :size="20" />
+              </a-button>
+            </a-tooltip>
+          </a-popover>
+
+          <a-popover
+            v-model:open="modelPopoverOpen"
+            trigger="click"
+            placement="topLeft"
+            overlay-class-name="composer-pop-overlay"
+          >
+            <template #content>
+              <div class="composer-pop__body">
+                <div class="composer-pop__title">选择模型</div>
+                <a-select
+                  :value="selectedProfileId"
+                  class="composer-pop__select"
+                  :loading="profilesLoading"
+                  :disabled="profiles.length === 0 && !profilesLoading"
+                  option-label-prop="label"
+                  :dropdown-match-select-width="false"
+                  :dropdown-style="{ minWidth: '260px', maxWidth: '360px' }"
+                  popup-class-name="agent-chat-model-dropdown"
+                  :placeholder="profiles.length === 0 ? '暂无模型配置' : '请选择模型'"
+                  @update:value="onModelPick"
+                >
+                  <template #optionLabel="opt">
+                    <span v-if="opt" class="composer-card__selection">
+                      <LlmProviderIcon
+                        v-if="opt.provider"
+                        :meta="providerMeta(opt.provider)"
+                        :size="18"
+                      />
+                      <span class="composer-card__selection-text">{{ opt.label }}</span>
+                    </span>
+                  </template>
+                  <a-select-opt-group v-if="profiles.length" label="我的配置">
+                    <a-select-option
+                      v-for="p in profiles"
+                      :key="p.id"
+                      :value="p.id"
+                      :label="p.display_name"
+                      :provider="p.provider"
+                    >
+                      <div class="composer-card__opt">
+                        <LlmProviderIcon :meta="providerMeta(p.provider)" :size="18" />
+                        <span class="composer-card__opt-name">{{ p.display_name }}</span>
+                        <a-tag color="success" class="composer-card__opt-tag">我的</a-tag>
+                      </div>
+                    </a-select-option>
+                  </a-select-opt-group>
+                </a-select>
+              </div>
+            </template>
+            <a-tooltip title="请选择模型">
+              <a-button
+                type="text"
+                class="composer-icon-btn"
+                :class="{ 'composer-icon-btn--active': modelPopoverOpen }"
+              >
+                <SvgIcon name="llm" :size="20" />
+              </a-button>
+            </a-tooltip>
+          </a-popover>
+
+          <a-popover
+            v-model:open="tempPopoverOpen"
+            trigger="click"
+            placement="topLeft"
+            overlay-class-name="composer-pop-overlay"
+          >
             <template #content>
               <div class="agent-chat__temp-body">
                 <div class="agent-chat__temp-title">温度 {{ temperature.toFixed(1) }}</div>
-                <a-slider
-                  v-model:value="temperature"
-                  :min="0"
-                  :max="1"
-                  :step="0.1"
-                />
+                <a-slider v-model:value="temperature" :min="0" :max="1" :step="0.1" />
                 <div class="agent-chat__temp-hint">越高越随机，越低越稳定</div>
               </div>
             </template>
-            <a-button type="text" class="composer-card__temp" title="温度">
-              <SvgIcon name="temperature" :size="18" />
-            </a-button>
+            <a-tooltip title="温度">
+              <a-button
+                type="text"
+                class="composer-icon-btn"
+                :class="{ 'composer-icon-btn--active': tempPopoverOpen }"
+              >
+                <SvgIcon name="temperature" :size="20" />
+              </a-button>
+            </a-tooltip>
           </a-popover>
 
           <div class="composer-card__spacer" />
@@ -190,6 +342,26 @@ function onHistory() {
             </a-button>
           </a-tooltip>
         </div>
+
+        <div class="composer-card__tags">
+          <a-tag
+            class="composer-tag"
+            color="processing"
+            @click="openSkillPopover"
+          >
+            {{ currentSkillLabel }}
+          </a-tag>
+          <a-tag
+            class="composer-tag"
+            :color="selectedProfileId != null ? 'blue' : 'warning'"
+            @click="openModelPopover"
+          >
+            {{ currentModelLabel }}
+          </a-tag>
+          <a-tag class="composer-tag" @click="openTempPopover">
+            {{ temperatureTagText }}
+          </a-tag>
+        </div>
       </div>
     </footer>
   </section>
@@ -197,9 +369,10 @@ function onHistory() {
 
 <style lang="scss" scoped>
 .agent-chat {
-  flex: 0.85;
-  min-width: 320px;
-  max-width: 520px;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: #fafafa;
@@ -340,29 +513,80 @@ function onHistory() {
 
 .composer-card__toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
-  padding: 8px 10px 10px 12px;
+  gap: 2px;
+  padding: 6px 10px 4px 12px;
 }
 
-.composer-card__model-wrap {
+.composer-icon-btn {
+  width: 40px;
+  height: 40px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  color: #595959;
+  border-radius: 8px;
+
+  &:hover {
+    color: #1890ff;
+    background: rgba(24, 144, 255, 0.06);
+  }
+}
+
+.composer-icon-btn--active {
+  color: #1890ff;
+  background: rgba(24, 144, 255, 0.1);
+}
+
+.composer-card__spacer {
   flex: 1;
-  min-width: 0;
-  max-width: calc(100% - 120px);
+  min-width: 8px;
 }
 
-.composer-card__model {
-  width: 100%;
-  min-width: 0;
+.composer-card__send {
+  width: 40px !important;
+  height: 40px !important;
+  flex-shrink: 0;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(24, 144, 255, 0.35);
+}
 
-  :deep(.ant-select-selector) {
-    padding-inline: 4px 8px !important;
-    box-shadow: none !important;
-  }
+.composer-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 10px 12px;
+}
 
-  :deep(.ant-select-selection-item) {
-    overflow: hidden;
+.composer-tag {
+  margin: 0 !important;
+  max-width: 100%;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &:hover {
+    opacity: 0.92;
   }
+}
+
+.composer-pop__body {
+  min-width: 240px;
+}
+
+.composer-pop__title {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-bottom: 8px;
+}
+
+.composer-pop__select {
+  width: 280px;
+  max-width: min(280px, 85vw);
 }
 
 .composer-card__selection {
@@ -401,41 +625,20 @@ function onHistory() {
   font-size: 11px;
   line-height: 18px;
 }
-
-.composer-card__temp {
-  font-size: 18px;
-  color: #595959;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.composer-card__spacer {
-  flex: 1;
-  min-width: 8px;
-}
-
-.composer-card__send {
-  width: 40px !important;
-  height: 40px !important;
-  flex-shrink: 0;
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 6px rgba(24, 144, 255, 0.35);
-}
 </style>
 
 <style lang="scss">
-/* 下拉略宽于触发器，上限避免撑满屏；由 popup-class-name 挂在 portal 上 */
 .agent-chat-model-dropdown.ant-select-dropdown {
   min-width: 260px !important;
   max-width: 360px !important;
 }
 
-.agent-chat__temp-pop .ant-popover-inner {
+.agent-chat-skill-dropdown.ant-select-dropdown {
+  min-width: 220px !important;
+  max-width: 340px !important;
+}
+
+.composer-pop-overlay .ant-popover-inner {
   padding: 12px 14px;
 }
 

@@ -8,9 +8,12 @@ from collections.abc import AsyncIterator
 from typing import Any, cast
 from uuid import uuid4
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.schemas.agent import AgentChatRequest, TextPart
 from app.services.skill.base import SkillContext
 from app.services.skill.executor import execute_skill
+from app.services.skill_service import SkillService
 from app.schemas.llm_invoke import LlmInvokeConfig
 from app.services.test_case_gen_llm import (
     parse_test_cases_from_llm_text,
@@ -27,6 +30,7 @@ def _sse(event: str, data: dict[str, Any]) -> bytes:
 
 
 async def iter_agent_chat_sse(
+    db: AsyncSession,
     payload: AgentChatRequest,
     llm_config: LlmInvokeConfig | None,
 ) -> AsyncIterator[bytes]:
@@ -38,11 +42,15 @@ async def iter_agent_chat_sse(
     - error: {message, details?}
     """
     assert payload.parts is not None
+    is_new_session = payload.session_id is None
     session_id = payload.session_id or uuid4()
     sid = str(session_id)
     user_text = "\n".join(p.text for p in payload.parts)
     skill_id = (payload.skill_id or "test_case_gen").strip() or "test_case_gen"
     parts_dump = [p.model_dump() for p in cast(list[TextPart], payload.parts)]
+
+    if is_new_session:
+        await SkillService().record_new_agent_session(db, skill_id)
 
     try:
         if skill_id != "test_case_gen":

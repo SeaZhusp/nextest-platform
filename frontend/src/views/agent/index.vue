@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import { postAgentChatStream } from '@/api/agent'
 import { listUserLlmProfiles } from '@/api/userLlmProfiles'
 import type { AgentStreamDonePayload } from '@/schemas/agent'
+import type { SkillMetaOut } from '@/schemas/skill'
 import { listSkills } from '@/api/skills'
 import { buildTextParts, validatePhase1UserInput } from '@/schemas/agent'
 import type { TestCaseItem } from '@/schemas/testcase'
@@ -14,6 +15,29 @@ import AgentChatPanel from './components/AgentChatPanel.vue'
 import type { AgentChatMessage, AgentOutputTabKey } from './types'
 
 const route = useRoute()
+
+/** 当前请求使用的技能（与输入区选择一致）；默认测试用例生成 */
+const selectedSkillId = ref('test_case_gen')
+
+const registeredSkills = ref<SkillMetaOut[]>([])
+const skillsLoading = ref(false)
+
+async function loadRegisteredSkills() {
+  skillsLoading.value = true
+  try {
+    const res = await listSkills()
+    registeredSkills.value = res.data ?? []
+  } catch {
+    registeredSkills.value = []
+  } finally {
+    skillsLoading.value = false
+  }
+}
+
+function applySkillId(next: string) {
+  const sid = next.trim() || 'test_case_gen'
+  selectedSkillId.value = sid
+}
 
 const mockMessages = ref<AgentChatMessage[]>([])
 
@@ -94,6 +118,7 @@ watch(
   (p) => {
     if (p === '/agent') {
       void loadLlmProfiles()
+      void loadRegisteredSkills()
     }
   },
   { immediate: true }
@@ -144,7 +169,7 @@ async function handleSend() {
     await postAgentChatStream(
       {
         session_id: sessionId.value ?? undefined,
-        skill_id: 'test_case_gen',
+        skill_id: selectedSkillId.value || 'test_case_gen',
         parts,
         llm_profile_id: selectedProfileId.value,
         temperature: temperature.value
@@ -182,49 +207,267 @@ function handleSave() {
   console.info('save', editorJsonText.value)
 }
 
-async function handleNewSession() {
+function resetSessionForSkillSwitch() {
   sessionId.value = null
   mockMessages.value = []
+  mockTestCases.value = []
+  editorJsonText.value = '[]'
+  outputTab.value = 'table'
+}
+
+async function handleNewSession() {
+  resetSessionForSkillSwitch()
   let skillHint = ''
-  try {
-    const res = await listSkills()
-    const names = (res.data ?? []).map((s) => s.skill_id).join(', ')
-    skillHint = names ? ` 已注册技能：${names}。` : ' 当前无已注册技能。'
-  } catch {
-    skillHint = ''
+  if (registeredSkills.value.length) {
+    skillHint = ` 已注册技能：${registeredSkills.value.map((s) => s.skill_id).join(', ')}。`
+  } else {
+    skillHint = ' 当前无已注册技能。'
   }
   message.info(`已清空会话（演示）。${skillHint}后续可接后端新会话接口。`)
 }
 
+function handleSkillChange(nextSkillId: string) {
+  const next = (nextSkillId || 'test_case_gen').trim() || 'test_case_gen'
+  if (next === selectedSkillId.value) return
+  if (!sessionId.value) {
+    applySkillId(next)
+    return
+  }
+  Modal.confirm({
+    title: '切换技能',
+    content: '切换技能将结束当前会话并清空对话与输出区已有结果，是否继续？',
+    okText: '确认切换',
+    cancelText: '取消',
+    onOk() {
+      resetSessionForSkillSwitch()
+      applySkillId(next)
+      message.success('已切换技能，请在新会话中继续对话')
+    }
+  })
+}
+
+/** 从路由 ?skill= 同步（与手动切换同一套确认逻辑） */
+function syncSkillFromRoute(skillFromQuery: string | null) {
+  if (!skillFromQuery?.trim()) return
+  const next = skillFromQuery.trim()
+  if (next === selectedSkillId.value) return
+  if (!sessionId.value) {
+    applySkillId(next)
+    return
+  }
+  Modal.confirm({
+    title: '切换技能',
+    content:
+      '路由指定了其他技能。切换技能将结束当前会话并清空对话与输出区已有结果，是否继续？',
+    okText: '确认切换',
+    cancelText: '取消',
+    onOk() {
+      resetSessionForSkillSwitch()
+      applySkillId(next)
+      message.success('已切换技能，请在新会话中继续对话')
+    }
+  })
+}
+
+watch(
+  () => route.query.skill,
+  (s) => {
+    const q = typeof s === 'string' && s.trim() ? s.trim() : null
+    syncSkillFromRoute(q)
+  },
+  { immediate: true }
+)
+
 function handleHistory() {
   message.info('历史会话（演示），后续可接列表接口')
 }
+
+/** 输出区与对话区之间的可拖拽分隔（对话区固定宽度，输出区占满剩余） */
+const AGENT_CHAT_WIDTH_KEY = 'agent_chat_panel_width'
+const CHAT_PANEL_MIN = 280
+const OUTPUT_PANEL_MIN = 260
+const RESIZER_WIDTH = 6
+const DEFAULT_CHAT_WIDTH = 400
+
+const agentBodyRef = ref<HTMLElement | null>(null)
+const chatPanelWidthPx = ref(DEFAULT_CHAT_WIDTH)
+const resizeDragging = ref(false)
+let resizeStartX = 0
+let resizeStartW = 0
+
+function clampChatWidth(w: number, bodyWidth: number): number {
+  const maxChat = Math.max(CHAT_PANEL_MIN, bodyWidth - OUTPUT_PANEL_MIN - RESIZER_WIDTH)
+  return Math.round(Math.min(maxChat, Math.max(CHAT_PANEL_MIN, w)))
+}
+
+function readStoredChatWidth(): void {
+  try {
+    const raw = localStorage.getItem(AGENT_CHAT_WIDTH_KEY)
+    const n = raw ? Number(raw) : NaN
+    if (Number.isFinite(n) && n >= CHAT_PANEL_MIN) {
+      chatPanelWidthPx.value = n
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function onResizePointerMove(clientX: number) {
+  if (!resizeDragging.value || !agentBodyRef.value) return
+  const bodyW = agentBodyRef.value.getBoundingClientRect().width
+  const delta = clientX - resizeStartX
+  /* 向右拖 = 分隔条右移 = 对话区变窄；向左拖 = 对话区变宽 */
+  chatPanelWidthPx.value = clampChatWidth(resizeStartW - delta, bodyW)
+}
+
+function onResizePointerUp() {
+  if (!resizeDragging.value) return
+  resizeDragging.value = false
+  document.body.style.removeProperty('cursor')
+  document.body.style.removeProperty('user-select')
+  try {
+    localStorage.setItem(AGENT_CHAT_WIDTH_KEY, String(chatPanelWidthPx.value))
+  } catch {
+    /* ignore */
+  }
+}
+
+function onResizeMouseMove(e: MouseEvent) {
+  onResizePointerMove(e.clientX)
+}
+
+function onResizeMouseUp() {
+  onResizePointerUp()
+}
+
+function onResizeTouchMove(e: TouchEvent) {
+  if (!resizeDragging.value) return
+  e.preventDefault()
+  const t = e.touches[0]
+  if (t) onResizePointerMove(t.clientX)
+}
+
+function onResizeTouchEnd() {
+  onResizePointerUp()
+}
+
+function onResizeStart(e: MouseEvent) {
+  e.preventDefault()
+  resizeDragging.value = true
+  resizeStartX = e.clientX
+  resizeStartW = chatPanelWidthPx.value
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+}
+
+function onResizeTouchStart(e: TouchEvent) {
+  const t = e.touches[0]
+  if (!t) return
+  e.preventDefault()
+  resizeDragging.value = true
+  resizeStartX = t.clientX
+  resizeStartW = chatPanelWidthPx.value
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+}
+
+function onResizeKeydown(e: KeyboardEvent) {
+  if (!agentBodyRef.value) return
+  const bodyW = agentBodyRef.value.getBoundingClientRect().width
+  if (e.key === 'ArrowLeft') {
+    e.preventDefault()
+    chatPanelWidthPx.value = clampChatWidth(chatPanelWidthPx.value + 16, bodyW)
+    try {
+      localStorage.setItem(AGENT_CHAT_WIDTH_KEY, String(chatPanelWidthPx.value))
+    } catch {
+      /* ignore */
+    }
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault()
+    chatPanelWidthPx.value = clampChatWidth(chatPanelWidthPx.value - 16, bodyW)
+    try {
+      localStorage.setItem(AGENT_CHAT_WIDTH_KEY, String(chatPanelWidthPx.value))
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+function applyChatWidthToBody() {
+  if (!agentBodyRef.value) return
+  const bodyW = agentBodyRef.value.getBoundingClientRect().width
+  chatPanelWidthPx.value = clampChatWidth(chatPanelWidthPx.value, bodyW)
+}
+
+onMounted(() => {
+  readStoredChatWidth()
+  requestAnimationFrame(() => applyChatWidthToBody())
+  window.addEventListener('mousemove', onResizeMouseMove)
+  window.addEventListener('mouseup', onResizeMouseUp)
+  window.addEventListener('touchmove', onResizeTouchMove, { passive: false })
+  window.addEventListener('touchend', onResizeTouchEnd)
+  window.addEventListener('touchcancel', onResizeTouchEnd)
+  window.addEventListener('resize', applyChatWidthToBody)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('mousemove', onResizeMouseMove)
+  window.removeEventListener('mouseup', onResizeMouseUp)
+  window.removeEventListener('touchmove', onResizeTouchMove)
+  window.removeEventListener('touchend', onResizeTouchEnd)
+  window.removeEventListener('touchcancel', onResizeTouchEnd)
+  window.removeEventListener('resize', applyChatWidthToBody)
+  document.body.style.removeProperty('cursor')
+  document.body.style.removeProperty('user-select')
+})
 </script>
 
 <template>
   <div class="agent-page">
-    <div class="agent-body">
-      <AgentOutputPanel
-        v-model:editor-json="editorJsonText"
-        v-model:output-tab="outputTab"
-        :session-id="sessionId"
-        :table-columns="tableColumns"
-        :rows="mockTestCases"
-        :markdown-report="markdownReport"
-        @save="handleSave"
+    <div
+      ref="agentBodyRef"
+      class="agent-body"
+      :class="{ 'agent-body--resizing': resizeDragging }"
+    >
+      <div class="agent-body__output">
+        <AgentOutputPanel
+          v-model:editor-json="editorJsonText"
+          v-model:output-tab="outputTab"
+          :session-id="sessionId"
+          :table-columns="tableColumns"
+          :rows="mockTestCases"
+          :markdown-report="markdownReport"
+          @save="handleSave"
+        />
+      </div>
+      <div
+        class="agent-body__resizer"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="拖动调节输出区与对话区宽度"
+        tabindex="0"
+        @mousedown="onResizeStart"
+        @touchstart.prevent="onResizeTouchStart"
+        @keydown="onResizeKeydown"
       />
-      <AgentChatPanel
-        v-model:input-text="inputText"
-        v-model:selected-profile-id="selectedProfileId"
-        v-model:temperature="temperature"
-        :messages="mockMessages"
-        :sending="sending"
-        :profiles="llmProfiles"
-        :profiles-loading="profilesLoading"
-        @send="handleSend"
-        @new-session="handleNewSession"
-        @history="handleHistory"
-      />
+      <div class="agent-body__chat" :style="{ width: `${chatPanelWidthPx}px` }">
+        <AgentChatPanel
+          v-model:input-text="inputText"
+          v-model:selected-profile-id="selectedProfileId"
+          v-model:temperature="temperature"
+          :selected-skill-id="selectedSkillId"
+          :skills="registeredSkills"
+          :skills-loading="skillsLoading"
+          :messages="mockMessages"
+          :sending="sending"
+          :profiles="llmProfiles"
+          :profiles-loading="profilesLoading"
+          @send="handleSend"
+          @new-session="handleNewSession"
+          @history="handleHistory"
+          @skill-change="handleSkillChange"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -241,11 +484,49 @@ function handleHistory() {
   flex: 1;
   display: flex;
   flex-direction: row;
+  align-items: stretch;
   gap: 0;
   min-height: 0;
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid #e8e8e8;
   background: #fff;
+}
+
+.agent-body__output {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-body__resizer {
+  flex-shrink: 0;
+  width: 6px;
+  margin: 0 -1px;
+  cursor: col-resize;
+  touch-action: none;
+  background: #e8e8e8;
+  align-self: stretch;
+  position: relative;
+  z-index: 2;
+  transition: background 0.12s ease;
+
+  &:hover {
+    background: #bae0ff;
+  }
+}
+
+.agent-body--resizing .agent-body__resizer {
+  background: #1890ff;
+}
+
+.agent-body__chat {
+  flex-shrink: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 </style>

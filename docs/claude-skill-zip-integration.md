@@ -123,7 +123,7 @@ backend/skills/
 ## 5. 与「技能广场」文档的关系
 
 - **执行**：始终依赖 `backend/skills/` + 注册表（本文档步骤 1–9）。
-- **展示/权限**：依赖 `docs/skill-plaza-implementation.md` 中的 **skill_catalog 表** 与只读广场 API；**SKILL.md 全文可同步到** `detail_markdown` 字段供广场详情展示，或在详情中仅展示摘要 +「以运行时为准」。
+- **展示**：依赖数据库 **`skills` 表**（管理端上架 `is_published`）与只读广场 API；**SKILL.md 全文可同步到** `detail_markdown` 字段供广场详情展示，或在详情中仅展示摘要 +「以运行时为准」。
 
 ---
 
