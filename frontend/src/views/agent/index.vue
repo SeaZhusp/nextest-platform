@@ -11,7 +11,7 @@ import { buildTextParts, validatePhase1UserInput } from '@/schemas/agent'
 import type { TestCaseItem } from '@/schemas/testcase'
 import type { UserLlmProfileOut } from '@/schemas/userLlmProfile'
 import AgentOutputPanel from './components/AgentOutputPanel.vue'
-import AgentChatPanel from './components/AgentChatPanel.vue'
+import AgentChatPanel from './components/chat-panel/index.vue'
 import type { AgentChatMessage, AgentOutputTabKey } from './types'
 
 const route = useRoute()
