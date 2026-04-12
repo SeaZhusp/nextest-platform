@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -9,6 +9,7 @@ import {
   LogoutOutlined,
   SettingOutlined,
   DownOutlined,
+  CloudOutlined,
 } from '@ant-design/icons-vue'
 import type { AuthUserInfo } from '@/api/auth'
 
@@ -21,6 +22,7 @@ interface Props {
 const props = defineProps<Props>()
 
 const route = useRoute()
+const router = useRouter()
 
 /** 右侧展示：优先昵称，否则用户名 */
 const displayName = computed(() => {
@@ -60,6 +62,11 @@ function handleToggleCollapsed() {
 function handleLogout() {
   emit('logout')
   userMenuVisible.value = false
+}
+
+function goLlmProfiles() {
+  userMenuVisible.value = false
+  void router.push('/settings/llm-profiles')
 }
 
 </script>
@@ -121,6 +128,10 @@ function handleLogout() {
               <a-menu-item key="profile">
                 <UserOutlined />
                 个人资料
+              </a-menu-item>
+              <a-menu-item key="llm-profiles" @click="goLlmProfiles">
+                <CloudOutlined />
+                模型配置
               </a-menu-item>
               <a-menu-item key="settings">
                 <SettingOutlined />

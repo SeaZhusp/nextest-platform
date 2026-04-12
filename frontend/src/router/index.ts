@@ -33,6 +33,12 @@ const routes = [
         meta: { title: '测试智能体', icon: 'RobotOutlined', showInMenu: true }
       },
       {
+        path: 'settings/llm-profiles',
+        name: 'settings-llm-profiles',
+        component: () => import('@/views/settings/llm-profiles/index.vue'),
+        meta: { title: '模型配置', showInMenu: false }
+      },
+      {
         path: 'system',
         name: 'system',
         meta: {

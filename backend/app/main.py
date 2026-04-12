@@ -9,6 +9,7 @@ from app.core.exception_handlers import register_exception_handlers
 from app.core.logger import setup_logging
 from app.core.middleware import setup_middleware
 from app.db.session import close_database
+from app.services.skill.registry import get_skill_registry
 
 app_logger = logging.getLogger("nextest.api")
 
@@ -16,6 +17,12 @@ app_logger = logging.getLogger("nextest.api")
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     setup_logging()
+    get_skill_registry().reload(settings.skills_dir)
+    app_logger.info(
+        "技能注册完成: %s (目录=%s)",
+        get_skill_registry().list_skill_ids(),
+        settings.skills_dir,
+    )
     app_logger.info("Application startup complete")
     yield
     await close_database()

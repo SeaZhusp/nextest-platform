@@ -11,8 +11,12 @@ export interface ApiResponse<T = any> {
 }
 
 // 获取Token
-function getToken(): string | null {
+export function getAccessToken(): string | null {
   return localStorage.getItem('access_token')
+}
+
+function getToken(): string | null {
+  return getAccessToken()
 }
 
 // 退出登录
