@@ -77,6 +77,39 @@ export interface AgentStreamDonePayload {
   used_template?: boolean
 }
 
+/** GET /agent/sessions/{id}/messages */
+export interface AgentHistoryMessageOut {
+  id: number
+  role: 'user' | 'assistant'
+  content_json: Record<string, unknown>
+  created_at: string
+}
+
+export interface AgentSessionMessagesData {
+  session_id: string
+  title: string
+  skill_id: string
+  messages: AgentHistoryMessageOut[]
+}
+
+export interface AgentSessionSummaryOut {
+  session_id: string
+  title: string
+  skill_id: string
+  updated_at: string
+}
+
+export interface AgentSessionListData {
+  items: AgentSessionSummaryOut[]
+  total: number
+  page: number
+  size: number
+}
+
+export interface AgentSessionRenameRequest {
+  title: string
+}
+
 const MAX_TEXT = 5000
 
 /** 将纯文本转为单段 parts（一期推荐写法） */

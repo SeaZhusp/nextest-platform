@@ -2,16 +2,21 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import { postAgentChatStream } from '@/api/agent'
+import { getAgentSessionMessages, postAgentChatStream } from '@/api/agent'
 import { listUserLlmProfiles } from '@/api/userLlmProfiles'
 import type { AgentStreamDonePayload } from '@/schemas/agent'
 import type { SkillMetaOut } from '@/schemas/skill'
 import { listSkills } from '@/api/skills'
-import { buildTextParts, validatePhase1UserInput } from '@/schemas/agent'
+import {
+  buildTextParts,
+  validatePhase1UserInput,
+  type AgentHistoryMessageOut
+} from '@/schemas/agent'
 import type { TestCaseItem } from '@/schemas/testcase'
 import type { UserLlmProfileOut } from '@/schemas/userLlmProfile'
 import AgentOutputPanel from './components/AgentOutputPanel.vue'
 import AgentChatPanel from './components/chat-panel/index.vue'
+import SessionHistoryDrawer from './components/chat-panel/SessionHistoryDrawer.vue'
 import type { AgentChatMessage, AgentOutputTabKey } from './types'
 
 const route = useRoute()
@@ -190,9 +195,18 @@ async function handleSend() {
           }
           mockMessages.value[assistIdx].content = buildStreamSummary(data)
         },
-        onError: (msg) => {
-          message.error(msg)
-          mockMessages.value[assistIdx].content = `生成失败：${msg}`
+        onError: (msg, details) => {
+          const reason =
+            details &&
+            typeof details === 'object' &&
+            details !== null &&
+            'reason' in details &&
+            String((details as { reason?: unknown }).reason || '').trim()
+              ? String((details as { reason: string }).reason)
+              : ''
+          const full = reason ? `${msg}（${reason}）` : msg
+          message.error(full)
+          mockMessages.value[assistIdx].content = `生成失败：${full}`
         }
       }
     )
@@ -223,7 +237,7 @@ async function handleNewSession() {
   } else {
     skillHint = ' 当前无已注册技能。'
   }
-  message.info(`已清空会话（演示）。${skillHint}后续可接后端新会话接口。`)
+  message.info(`已新建会话。${skillHint}`)
 }
 
 function handleSkillChange(nextSkillId: string) {
@@ -278,8 +292,83 @@ watch(
   { immediate: true }
 )
 
+const historyDrawerOpen = ref(false)
+
 function handleHistory() {
-  message.info('历史会话（演示），后续可接列表接口')
+  historyDrawerOpen.value = true
+}
+
+function userTextFromApiMessage(content: Record<string, unknown>): string {
+  const parts = content.parts
+  if (!Array.isArray(parts)) return ''
+  return parts
+    .map((p) => (p && typeof p === 'object' ? (p as { type?: string; text?: string }) : null))
+    .filter((p): p is { type?: string; text?: string } => !!p)
+    .filter((p) => p.type === 'text' && typeof p.text === 'string')
+    .map((p) => p.text)
+    .join('\n')
+    .trim()
+}
+
+function assistantBriefFromApiMessage(content: Record<string, unknown>): string {
+  const text = typeof content.text === 'string' ? content.text : ''
+  if (!text) return '[助手回复]'
+  if (text.length > 360) return `${text.slice(0, 360)}…`
+  return text
+}
+
+function tryHydrateTestCasesFromHistory(messages: AgentHistoryMessageOut[]): void {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i]
+    if (m.role !== 'assistant') continue
+    const raw = m.content_json?.text
+    const text = typeof raw === 'string' ? raw : ''
+    if (!text.trim()) continue
+    try {
+      const parsed = JSON.parse(text) as unknown
+      if (
+        Array.isArray(parsed) &&
+        parsed.length &&
+        parsed.every((x) => x && typeof x === 'object')
+      ) {
+        mockTestCases.value = rowsFromTestCases(parsed as TestCaseItem[])
+        editorJsonText.value = JSON.stringify(mockTestCases.value, null, 2)
+        outputTab.value = 'table'
+        return
+      }
+    } catch {
+      /* 非 JSON 或结构不符 */
+    }
+  }
+  mockTestCases.value = []
+  editorJsonText.value = '[]'
+  outputTab.value = 'editor'
+}
+
+async function onSelectHistorySession(payload: { sessionId: string; skillId: string }) {
+  const { sessionId: sid, skillId } = payload
+  try {
+    const res = await getAgentSessionMessages(sid)
+    const data = res.data
+    if (!data) {
+      message.warning('未拉取到会话数据')
+      return
+    }
+    sessionId.value = data.session_id
+    applySkillId((skillId || data.skill_id || 'test_case_gen').trim() || 'test_case_gen')
+    mockMessages.value = data.messages.map((m) => ({
+      id: String(m.id),
+      role: m.role,
+      content:
+        m.role === 'user'
+          ? userTextFromApiMessage(m.content_json as Record<string, unknown>)
+          : assistantBriefFromApiMessage(m.content_json as Record<string, unknown>)
+    }))
+    tryHydrateTestCasesFromHistory(data.messages)
+    message.success('已载入历史会话')
+  } catch {
+    /* request 拦截器已提示 */
+  }
 }
 
 /** 输出区与对话区之间的可拖拽分隔（对话区固定宽度，输出区占满剩余） */
@@ -424,6 +513,7 @@ onUnmounted(() => {
 
 <template>
   <div class="agent-page">
+    <SessionHistoryDrawer v-model:open="historyDrawerOpen" @select="onSelectHistorySession" />
     <div
       ref="agentBodyRef"
       class="agent-body"

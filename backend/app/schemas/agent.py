@@ -82,7 +82,7 @@ class AgentChatRequest(BaseModel):
 
     session_id: UUID | None = Field(
         default=None,
-        description="已有会话 ID；不传则由服务端创建新会话（后续接 DB）",
+        description="已有会话 ID（与 /agent/chat 或 /chat/stream 返回的 session_id 一致）；不传则创建新会话并持久化",
     )
     skill_id: str | None = Field(
         default="test_case_gen",
@@ -163,3 +163,51 @@ class AgentChatAckData(BaseModel):
         default_factory=list,
         description="由 skill 执行生成的结构化用例；LLM 接入前可为模板/占位数据",
     )
+
+
+class AgentHistoryMessageOut(BaseModel):
+    """会话单条消息（2.2.4 查询）。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    role: Literal["user", "assistant"]
+    content_json: dict[str, Any]
+    created_at: str
+
+
+class AgentSessionMessagesData(BaseModel):
+    """某会话下全部消息（按时间升序）。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    session_id: str
+    title: str = Field(default="", description="会话展示名")
+    skill_id: str = Field(default="", description="当前技能 ID")
+    messages: list[AgentHistoryMessageOut]
+
+
+class AgentSessionSummaryOut(BaseModel):
+    """历史会话列表项。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    session_id: str
+    title: str
+    skill_id: str
+    updated_at: str
+
+
+class AgentSessionListData(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[AgentSessionSummaryOut]
+    total: int
+    page: int
+    size: int
+
+
+class AgentSessionRenameRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(..., min_length=1, max_length=200, description="新标题")

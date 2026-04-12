@@ -66,10 +66,8 @@ class SkillService:
         self._repo = SkillRepository()
 
     async def record_new_agent_session(self, db: AsyncSession, skill_id: str) -> None:
-        """技能目录中存在该 skill_id 时，将使用次数 +1 并提交。"""
-        n = await self._repo.increment_use_count(db, skill_id)
-        if n:
-            await db.commit()
+        """技能目录中存在该 skill_id 时，将使用次数 +1（不显式 commit，由调用方事务提交）。"""
+        await self._repo.increment_use_count(db, skill_id)
 
     async def list_plaza(
         self,

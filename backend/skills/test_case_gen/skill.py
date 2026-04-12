@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 
 from app.core.exceptions import BusinessException
@@ -35,8 +36,12 @@ class TestCaseGenSkill(BaseSkill):
     async def run(self, ctx: SkillContext) -> SkillRunResult:
         if ctx.llm_config is not None:
             try:
-                cases = await generate_test_cases_from_user_text(ctx.user_text, ctx.llm_config)
-                return SkillRunResult(test_cases=cases)
+                cases, raw = await generate_test_cases_from_user_text(
+                    ctx.user_text,
+                    ctx.llm_config,
+                    chat_messages=ctx.llm_chat_messages,
+                )
+                return SkillRunResult(test_cases=cases, llm_raw_output=raw)
             except BusinessException:
                 raise
             except Exception as e:
@@ -45,7 +50,11 @@ class TestCaseGenSkill(BaseSkill):
                     message="调用大模型失败，请稍后重试",
                     details={"reason": str(e)},
                 ) from e
-        return SkillRunResult(test_cases=template_test_cases())
+        tpl = template_test_cases()
+        return SkillRunResult(
+            test_cases=tpl,
+            llm_raw_output=json.dumps([c.model_dump() for c in tpl], ensure_ascii=False),
+        )
 
 
 def build_skill() -> BaseSkill:

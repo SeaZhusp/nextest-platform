@@ -1,6 +1,10 @@
 import type {
   AgentChatAckData,
   AgentChatRequest,
+  AgentSessionListData,
+  AgentSessionMessagesData,
+  AgentSessionRenameRequest,
+  AgentSessionSummaryOut,
   AgentStreamDonePayload,
   TextPart
 } from '@/schemas/agent'
@@ -10,6 +14,21 @@ import api, { getAccessToken } from '@/utils/request'
 /** 非流式：一次返回完整结果 */
 export function postAgentChat(body: AgentChatRequest) {
   return api.post<AgentChatAckData>('/agent/chat', body)
+}
+
+/** 历史会话分页列表 */
+export function getAgentSessions(params: { page?: number; size?: number }) {
+  return api.get<AgentSessionListData>('/agent/sessions', { params })
+}
+
+/** 某会话消息（含 title / skill_id） */
+export function getAgentSessionMessages(sessionId: string) {
+  return api.get<AgentSessionMessagesData>(`/agent/sessions/${sessionId}/messages`)
+}
+
+/** 重命名会话 */
+export function patchAgentSessionTitle(sessionId: string, body: AgentSessionRenameRequest) {
+  return api.patch<AgentSessionSummaryOut>(`/agent/sessions/${sessionId}`, body)
 }
 
 type StreamHandlers = {

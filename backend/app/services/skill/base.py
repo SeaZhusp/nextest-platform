@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -20,12 +21,20 @@ class SkillContext(BaseModel):
         default=None,
         description="当前轮用户自备大模型参数；未传则技能侧不调用 LLM",
     )
+    llm_chat_messages: list[dict[str, Any]] | None = Field(
+        default=None,
+        description="多轮时由编排层注入的完整 chat messages（含 system 与历史）；仅 test_case_gen 等场景使用",
+    )
 
 
 class SkillRunResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     test_cases: list[TestCaseItem] = Field(default_factory=list)
+    llm_raw_output: str | None = Field(
+        default=None,
+        description="助手消息持久化：模型输出原文（若有）",
+    )
 
 
 class BaseSkill(ABC):
