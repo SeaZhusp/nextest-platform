@@ -232,7 +232,7 @@ function handleHistory() {
 <style lang="scss" scoped>
 .agent-page {
   height: 100%;
-  min-height: calc(100vh - 120px);
+  min-height: calc(100vh - 128px);
   display: flex;
   flex-direction: column;
 }

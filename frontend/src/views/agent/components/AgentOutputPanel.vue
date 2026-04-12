@@ -195,24 +195,60 @@ function onSave() {
 }
 
 .agent-output__pane--editor {
+  display: flex;
+  flex-direction: column;
   padding: 0;
   background: #1e1e1e;
+  /* 只让内部 textarea 滚动，避免出现双滚动条（尤其 Windows） */
+  overflow: hidden;
+  min-height: 0;
 }
 
 .agent-editor {
+  flex: 1 1 auto;
   width: 100%;
-  height: 100%;
-  min-height: 360px;
+  min-height: 0;
   padding: 12px 16px;
   margin: 0;
   border: none;
   resize: none;
+  box-sizing: border-box;
+  overflow: auto;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 13px;
   line-height: 1.5;
   color: #d4d4d4;
   background: #1e1e1e;
   outline: none;
+
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: #5a5a5a #2a2a2a;
+
+  /* Chromium / Safari / Edge */
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #252526;
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #5a5a5a;
+    border-radius: 4px;
+    border: 2px solid #252526;
+
+    &:hover {
+      background: #6f6f6f;
+    }
+  }
+
+  &::-webkit-scrollbar-corner {
+    background: #252526;
+  }
 }
 
 .agent-output__pane--preview {
