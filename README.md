@@ -1,6 +1,6 @@
 # NexTest Platform · 测试智能体平台
 
-**技能驱动的测试智能体 Web 平台：用户 LLM 配置、对话（含 SSE）、技能广场与后台目录管理，API 统一在 `/api`。**  
+**技能驱动的测试智能体 Web 平台：用户 LLM 配置、对话（含 SSE），API 统一在 `/api`。**  
 *A web platform for test-oriented agents: Vue 3 + FastAPI + MySQL.*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -13,7 +13,7 @@
 ## 适合谁用
 
 - 需要在**团队内**搭建「选技能 + 选模型」的测试辅助对话能力，并希望会话与配置落在自有服务与数据库中的团队  
-- 希望**扩展技能包**（`backend/skills/` 目录注册）并与数据库中的**技能广场 / 管理员目录**联动的开发者  
+- 希望**扩展技能包**（`backend/skills/` 目录注册）并接入统一智能体对话流程的开发者  
 - 熟悉 **Vue 3 / FastAPI**，愿意基于当前分层（`api → services → repositories → models`）继续迭代的同学  
 
 > 与纯聊天应用的区别：对话按 **skill_id** 走已注册技能流水线，模型走用户保存的 **OpenAI 兼容** 端点配置，而非单一全局 Key。
@@ -28,9 +28,8 @@
 | **测试智能体** | 非流式 `/api/agent/chat`、SSE `/api/agent/chat/stream`；会话列表、重命名、历史消息； |
 | **用户 LLM 配置** | 多配置 CRUD、保存前连通性测试、启用项；对话中可选 `llm_profile_id` 与 `temperature` |
 | **技能（运行时）** | 启动时从 `skills` 目录加载注册；`/api/skills` 元数据列表与独立 `invoke` |
-| **技能广场** | 登录只读列表与详情，`/api/skill-plaza`（数据来自 DB，与目录展示配合） |
-| **系统管理（admin）** | 用户列表与启用状态；技能目录 CRUD，`/api/admin/users`、`/api/admin/skills` |
-| **前端控制台** | 首页、智能体页、技能广场、模型配置；侧栏按 `user_type === admin` 显示系统管理 |
+| **系统管理（admin）** | 用户列表与启用状态，`/api/admin/users` |
+| **前端控制台** | 首页、智能体页、模型配置；侧栏按 `user_type === admin` 显示系统管理 |
 
 ---
 

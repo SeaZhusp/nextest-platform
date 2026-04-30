@@ -21,7 +21,6 @@ from app.schemas.agent import (
     AgentSessionMessagesData,
     TextPart,
 )
-from app.services.skill_service import SkillService
 
 
 @dataclass
@@ -55,7 +54,6 @@ async def resolve_agent_session(
             skill_id=sid,
             title=initial_title,
         )
-        await SkillService().record_new_agent_session(db, sid)
         return ResolvedAgentSession(row=row, conversation_uuid=new_uuid, is_new_session=True)
 
     su = str(session_id)

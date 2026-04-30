@@ -1,6 +1,7 @@
 import type {
   AgentChatAckData,
   AgentChatRequest,
+  AgentExecutionSummaryOut,
   AgentSessionListData,
   AgentSessionMessagesData,
   AgentSessionRenameRequest,
@@ -24,6 +25,11 @@ export function getAgentSessions(params: { page?: number; size?: number }) {
 /** 某会话消息（含 title / skill_id） */
 export function getAgentSessionMessages(sessionId: string) {
   return api.get<AgentSessionMessagesData>(`/agent/sessions/${sessionId}/messages`)
+}
+
+/** 某会话 execution 汇总（看板聚合） */
+export function getAgentExecutionSummary(sessionId: string) {
+  return api.get<AgentExecutionSummaryOut>(`/agent/sessions/${sessionId}/execution-summary`)
 }
 
 /** 重命名会话 */

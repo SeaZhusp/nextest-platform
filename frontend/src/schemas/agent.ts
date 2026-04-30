@@ -50,7 +50,7 @@ export type MessagePart =
 /** POST /api/agent/chat 请求体 */
 export interface AgentChatRequest {
   session_id?: string | null
-  skill_id?: string | null
+  skill_id: string
   parts?: MessagePart[] | null
   /** 与 parts 互斥：等价于单段 { type: 'text', text: content } */
   content?: string | null
@@ -82,7 +82,41 @@ export interface AgentHistoryMessageOut {
   id: number
   role: 'user' | 'assistant'
   content_json: Record<string, unknown>
+  execution?: AgentExecutionOut | null
   created_at: string
+}
+
+export type AgentExecutionStatus = 'succeeded' | 'failed' | 'partial'
+
+export type AgentExecutionTraceStatus =
+  | 'pending'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'skipped'
+
+export interface AgentExecutionTraceOut {
+  step_id: string
+  status: AgentExecutionTraceStatus
+  duration_ms: number
+  error?: string | null
+  output_summary?: string
+}
+
+export interface AgentExecutionOut {
+  status: AgentExecutionStatus
+  traces: AgentExecutionTraceOut[]
+  outputs: Record<string, unknown>
+}
+
+export interface AgentExecutionSummaryOut {
+  session_id: string
+  total_assistant_messages: number
+  total_executions: number
+  succeeded: number
+  failed: number
+  total_duration_ms: number
+  last_status?: AgentExecutionStatus | null
 }
 
 export interface AgentSessionMessagesData {

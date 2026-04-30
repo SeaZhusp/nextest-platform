@@ -33,10 +33,15 @@ const routes = [
         meta: { title: '测试智能体', icon: 'RobotOutlined', showInMenu: true }
       },
       {
-        path: 'skill-plaza',
-        name: 'skill-plaza',
-        component: () => import('@/views/skill-plaza/index.vue'),
-        meta: { title: '技能广场', icon: 'ShopOutlined', showInMenu: true }
+        path: 'agent-executions',
+        name: 'agent-executions',
+        component: () => import('@/views/agent-executions/index.vue'),
+        meta: {
+          title: '执行看板',
+          icon: 'DashboardOutlined',
+          showInMenu: true,
+          activeMenu: '/agent'
+        }
       },
       {
         path: 'settings/llm-profiles',
@@ -61,17 +66,6 @@ const routes = [
             meta: {
               title: '用户管理',
               icon: 'UserOutlined',
-              showInMenu: true,
-              role: 'admin'
-            }
-          },
-          {
-            path: 'skills',
-            name: 'system-skills',
-            component: () => import('@/views/system/skills/index.vue'),
-            meta: {
-              title: '技能管理',
-              icon: 'AppstoreOutlined',
               showInMenu: true,
               role: 'admin'
             }
