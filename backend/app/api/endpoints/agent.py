@@ -23,9 +23,9 @@ from app.schemas.agent import (
 )
 from app.schemas.common import ApiResponse
 from app.services.agent.memory_service import list_session_messages_for_user
-from app.services.agent_session_service import list_my_sessions, rename_session
+from app.services.conversation_service import list_my_conversations, rename_conversation
 from app.services.agent_service import process_agent_chat
-from app.services.agent_stream_service import iter_agent_chat_sse
+from app.services.conversation_stream_service import iter_conversation_chat_sse
 from app.services.llm_resolve_service import resolve_user_llm_config
 
 router = APIRouter(prefix="/agent", tags=["agent"])
@@ -77,7 +77,7 @@ async def chat_stream(
     )
     uid = _parse_user_id(user)
     return StreamingResponse(
-        iter_agent_chat_sse(payload, llm_cfg, user_id=uid),
+        iter_conversation_chat_sse(payload, llm_cfg, user_id=uid),
         media_type="text/event-stream; charset=utf-8",
         headers={
             "Cache-Control": "no-cache",
@@ -95,7 +95,7 @@ async def list_agent_sessions(
 ) -> ApiResponse[AgentSessionListData]:
     """当前用户的历史会话列表（分页，按更新时间倒序）。"""
     uid = _parse_user_id(user)
-    data = await list_my_sessions(db, user_id=uid, page=paging.page, size=paging.size)
+    data = await list_my_conversations(db, user_id=uid, page=paging.page, size=paging.size)
     return ApiResponse(data=data)
 
 
@@ -111,7 +111,7 @@ async def rename_agent_session(
 ) -> ApiResponse[AgentSessionSummaryOut]:
     """重命名会话展示标题。"""
     uid = _parse_user_id(user)
-    data = await rename_session(db, user_id=uid, session_uuid=session_id, title=body.title)
+    data = await rename_conversation(db, user_id=uid, conversation_uuid=session_id, title=body.title)
     return ApiResponse(data=data)
 
 
@@ -126,5 +126,5 @@ async def list_session_messages(
 ) -> ApiResponse[AgentSessionMessagesData]:
     """查询会话消息历史（2.2.4 F1.11）。"""
     uid = _parse_user_id(user)
-    data = await list_session_messages_for_user(db, user_id=uid, session_uuid=session_id)
+    data = await list_session_messages_for_user(db, user_id=uid, conversation_uuid=session_id)
     return ApiResponse(data=data)

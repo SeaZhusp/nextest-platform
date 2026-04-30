@@ -10,13 +10,13 @@ import json
 import logging
 from typing import Any
 
-from app.models.agent_session import AgentMessage
+from app.models.conversation import ConversationMessage
 from app.services.test_case_gen_llm import get_system_prompt_for_test_case_gen
 
 logger = logging.getLogger(__name__)
 
 
-def complete_pairs_only(rows: list[AgentMessage]) -> list[AgentMessage]:
+def complete_pairs_only(rows: list[ConversationMessage]) -> list[ConversationMessage]:
     """去掉末尾未成对的 user（例如上一轮 LLM 失败仅有 user 行）。"""
     if len(rows) % 2 == 1:
         return rows[:-1]
@@ -49,7 +49,7 @@ def assistant_text_from_content_json(content: dict[str, Any]) -> str:
 
 def build_test_case_gen_llm_messages(
     *,
-    prior_messages: list[AgentMessage],
+    prior_messages: list[ConversationMessage],
     current_user_text: str,
     max_rounds: int,
     system_prompt: str | None = None,

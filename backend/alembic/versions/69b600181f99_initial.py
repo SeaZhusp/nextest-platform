@@ -1,8 +1,8 @@
-"""update
+"""initial
 
-Revision ID: fe0ef7a60bcd
+Revision ID: 69b600181f99
 Revises: 
-Create Date: 2026-04-12 14:12:50.617279
+Create Date: 2026-04-30 22:16:29.162175
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'fe0ef7a60bcd'
+revision: str = '69b600181f99'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -24,15 +24,12 @@ def upgrade() -> None:
     op.create_table('skills',
     sa.Column('skill_id', sa.String(length=64), nullable=False, comment='与 backend/skills/<skill_id> 一致'),
     sa.Column('name', sa.String(length=128), nullable=False, comment='展示名称'),
-    sa.Column('subtitle', sa.String(length=256), nullable=True, comment='副标题'),
     sa.Column('description', sa.Text(), nullable=False, comment='列表短描述'),
-    sa.Column('detail_markdown', sa.Text(), nullable=True, comment='详情 Markdown'),
     sa.Column('capability_tags', sa.JSON(), nullable=True, comment='核心能力标签 JSON 数组'),
     sa.Column('icon_key', sa.String(length=64), nullable=True, comment='图标 key'),
     sa.Column('is_published', sa.Boolean(), nullable=False, comment='上架：在技能广场展示；下架仅管理端可见'),
     sa.Column('sort_order', sa.Integer(), nullable=False, comment='排序，越小越前'),
-    sa.Column('view_count', sa.Integer(), nullable=False, comment='详情浏览次数'),
-    sa.Column('like_count', sa.Integer(), nullable=False, comment='点赞数（预留）'),
+    sa.Column('use_count', sa.Integer(), nullable=False, comment='使用次数：智能体以该技能发起新会话时 +1'),
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='数据库主键ID'),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
@@ -61,6 +58,21 @@ def upgrade() -> None:
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
     op.create_index(op.f('ix_users_phone'), 'users', ['phone'], unique=True)
     op.create_index(op.f('ix_users_username'), 'users', ['username'], unique=True)
+    op.create_table('conversations',
+    sa.Column('conversation_uuid', sa.String(length=36), nullable=False, comment='对外会话 ID（UUID 字符串）'),
+    sa.Column('user_id', sa.BigInteger(), nullable=False, comment='所属用户'),
+    sa.Column('skill_id', sa.String(length=64), nullable=False, comment='当前技能 ID'),
+    sa.Column('title', sa.String(length=200), nullable=False, comment='会话名称'),
+    sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='数据库主键ID'),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True, comment='删除时间(软删除)'),
+    sa.Column('deleted_by', sa.String(length=36), nullable=True, comment='删除人标识'),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_conversations_conversation_uuid'), 'conversations', ['conversation_uuid'], unique=True)
+    op.create_index(op.f('ix_conversations_user_id'), 'conversations', ['user_id'], unique=False)
     op.create_table('user_llm_profiles',
     sa.Column('user_id', sa.BigInteger(), nullable=False, comment='用户 ID'),
     sa.Column('provider', sa.String(length=32), nullable=False, comment='模型提供商：openai/deepseek/qwen/zhipu/anthropic/other'),
@@ -79,14 +91,32 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_user_llm_profiles_user_id'), 'user_llm_profiles', ['user_id'], unique=False)
+    op.create_table('conversation_messages',
+    sa.Column('conversation_id', sa.BigInteger(), nullable=False, comment='所属会话主键'),
+    sa.Column('role', sa.String(length=16), nullable=False, comment='user / assistant'),
+    sa.Column('content_json', sa.JSON(), nullable=False, comment='用户：{parts:[...]}；助手：{text: 模型原文或等价 JSON 文本}'),
+    sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='数据库主键ID'),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True, comment='删除时间(软删除)'),
+    sa.Column('deleted_by', sa.String(length=36), nullable=True, comment='删除人标识'),
+    sa.ForeignKeyConstraint(['conversation_id'], ['conversations.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_conversation_messages_conversation_id'), 'conversation_messages', ['conversation_id'], unique=False)
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_index(op.f('ix_conversation_messages_conversation_id'), table_name='conversation_messages')
+    op.drop_table('conversation_messages')
     op.drop_index(op.f('ix_user_llm_profiles_user_id'), table_name='user_llm_profiles')
     op.drop_table('user_llm_profiles')
+    op.drop_index(op.f('ix_conversations_user_id'), table_name='conversations')
+    op.drop_index(op.f('ix_conversations_conversation_uuid'), table_name='conversations')
+    op.drop_table('conversations')
     op.drop_index(op.f('ix_users_username'), table_name='users')
     op.drop_index(op.f('ix_users_phone'), table_name='users')
     op.drop_index(op.f('ix_users_email'), table_name='users')

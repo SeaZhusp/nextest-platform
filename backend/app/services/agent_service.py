@@ -51,7 +51,7 @@ async def process_agent_chat(
 
     ctx = SkillContext(
         user_text=user_text,
-        session_id=str(resolved.session_uuid),
+        session_id=str(resolved.conversation_uuid),
         skill_id=skill_id,
         llm_config=llm_config,
         llm_chat_messages=llm_messages,
@@ -67,7 +67,7 @@ async def process_agent_chat(
     await db.commit()
 
     return AgentChatAckData(
-        session_id=str(resolved.session_uuid),
+        session_id=str(resolved.conversation_uuid),
         skill_id=skill_id,
         parts=parts,
         test_cases=result.test_cases,

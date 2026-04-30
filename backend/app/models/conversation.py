@@ -4,18 +4,19 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import ModelBase
 
 
-class AgentSession(ModelBase):
-    """智能体会话（2.2.4：对外以 session_uuid 标识，等价于路线图中的 sessions）。"""
+class Conversation(ModelBase):
+    """对话（2.2.4：对外以 conversation_uuid 标识，等价于路线图中的 sessions）。"""
 
-    __tablename__ = "agent_sessions"
+    __tablename__ = "conversations"
 
-    session_uuid: Mapped[str] = mapped_column(
+    conversation_uuid: Mapped[str] = mapped_column(
         String(36),
         unique=True,
         index=True,
         nullable=False,
         comment="对外会话 ID（UUID 字符串）",
     )
+
     user_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -34,20 +35,20 @@ class AgentSession(ModelBase):
         comment="会话名称",
     )
 
-    messages: Mapped[list["AgentMessage"]] = relationship(
-        "AgentMessage",
+    messages: Mapped[list["ConversationMessage"]] = relationship(
+        "ConversationMessage",
         back_populates="session",
     )
 
 
-class AgentMessage(ModelBase):
-    """会话消息（用户片段 JSON + 助手全文等，等价于路线图中的 messages）。"""
+class ConversationMessage(ModelBase):
+    """对话消息（用户片段 JSON + 助手全文等，等价于路线图中的 messages）。"""
 
-    __tablename__ = "agent_messages"
+    __tablename__ = "conversation_messages"
 
-    agent_session_id: Mapped[int] = mapped_column(
+    conversation_id: Mapped[int] = mapped_column(
         BigInteger,
-        ForeignKey("agent_sessions.id", ondelete="CASCADE"),
+        ForeignKey("conversations.id", ondelete="CASCADE"),
         index=True,
         nullable=False,
         comment="所属会话主键",
@@ -63,4 +64,4 @@ class AgentMessage(ModelBase):
         comment="用户：{parts:[...]}；助手：{text: 模型原文或等价 JSON 文本}",
     )
 
-    session: Mapped["AgentSession"] = relationship("AgentSession", back_populates="messages")
+    session: Mapped["Conversation"] = relationship("Conversation", back_populates="messages")

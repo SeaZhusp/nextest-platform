@@ -1,4 +1,4 @@
-"""智能体 SSE 流（2.2.3 F1.9 / F1.10 + 2.2.4 会话记忆）。"""
+"""会话 SSE 流（2.2.3 F1.9 / F1.10 + 2.2.4 会话记忆）。"""
 
 from __future__ import annotations
 
@@ -34,17 +34,12 @@ def _sse(event: str, data: dict[str, Any]) -> bytes:
     return f"event: {event}\ndata: {payload}\n\n".encode("utf-8")
 
 
-async def iter_agent_chat_sse(
+async def iter_conversation_chat_sse(
     payload: AgentChatRequest,
     llm_config: LlmInvokeConfig | None,
     *,
     user_id: int,
 ) -> AsyncIterator[bytes]:
-    """
-    SSE 字节流：event + JSON data。
-
-    使用独立 DB 会话，避免 StreamingResponse 返回后请求级 Session 被提前关闭。
-    """
     assert payload.parts is not None
     skill_id = (payload.skill_id or "test_case_gen").strip() or "test_case_gen"
     parts = cast(list[TextPart], payload.parts)
@@ -63,7 +58,7 @@ async def iter_agent_chat_sse(
         await save_user_message(db, agent_session_id=resolved.row.id, parts=parts)
         await db.commit()
 
-        sid = str(resolved.session_uuid)
+        sid = str(resolved.conversation_uuid)
 
         try:
             if skill_id != "test_case_gen":

@@ -11,9 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.exceptions import NotFoundException
-from app.models.agent_session import AgentMessage, AgentSession
-from app.repositories.agent_message_repository import agent_message_repository
-from app.repositories.agent_session_repository import agent_session_repository
+from app.models.conversation import Conversation, ConversationMessage
+from app.repositories.conversation_repository import conversation_repository
 from app.schemas.agent import AgentHistoryMessageOut, AgentSessionMessagesData, TextPart
 from app.services.agent.context import build_test_case_gen_llm_messages
 from app.services.skill_service import SkillService
@@ -21,8 +20,8 @@ from app.services.skill_service import SkillService
 
 @dataclass
 class ResolvedAgentSession:
-    row: AgentSession
-    session_uuid: UUID
+    row: Conversation
+    conversation_uuid: UUID
     is_new_session: bool
 
 
@@ -43,32 +42,32 @@ async def resolve_agent_session(
         new_uuid = uuid4()
         # 新会话与首条用户输入同一次请求：用本轮 parts 直接作为标题（与即将写入的首条消息一致）
         initial_title = _title_from_first_user_input(parts or [])
-        row = await agent_session_repository.create_for_user(
+        row = await conversation_repository.create_for_user(
             db,
-            session_uuid=str(new_uuid),
+            conversation_uuid=str(new_uuid),
             user_id=user_id,
             skill_id=sid,
             title=initial_title,
         )
         await SkillService().record_new_agent_session(db, sid)
-        return ResolvedAgentSession(row=row, session_uuid=new_uuid, is_new_session=True)
+        return ResolvedAgentSession(row=row, conversation_uuid=new_uuid, is_new_session=True)
 
     su = str(session_id)
-    row = await agent_session_repository.get_by_uuid_for_user(db, session_uuid=su, user_id=user_id)
+    row = await conversation_repository.get_by_uuid_for_user(db, conversation_uuid=su, user_id=user_id)
     if row is None:
         raise NotFoundException("会话不存在或无权访问")
     if row.skill_id != sid:
         row.skill_id = sid
         await db.flush()
-    return ResolvedAgentSession(row=row, session_uuid=session_id, is_new_session=False)
+    return ResolvedAgentSession(row=row, conversation_uuid=session_id, is_new_session=False)
 
 
 async def load_prior_messages(
     db: AsyncSession,
     *,
     agent_session_id: int,
-) -> list[AgentMessage]:
-    return await agent_message_repository.list_for_session(db, agent_session_id=agent_session_id)
+) -> list[ConversationMessage]:
+    return await conversation_repository.list_messages(db, conversation_id=agent_session_id)
 
 
 def build_llm_messages_for_test_case_gen(
@@ -99,14 +98,14 @@ async def save_user_message(
     agent_session_id: int,
     parts: list[TextPart],
 ) -> None:
-    await agent_message_repository.create_message(
+    await conversation_repository.create_message(
         db,
-        agent_session_id=agent_session_id,
+        conversation_id=agent_session_id,
         role="user",
         content_json=_parts_to_content_json(parts),
     )
     await db.flush()
-    await agent_session_repository.touch_updated_at(db, agent_session_id)
+    await conversation_repository.touch_updated_at(db, agent_session_id)
 
 
 async def save_assistant_message(
@@ -115,14 +114,14 @@ async def save_assistant_message(
     agent_session_id: int,
     text: str,
 ) -> None:
-    await agent_message_repository.create_message(
+    await conversation_repository.create_message(
         db,
-        agent_session_id=agent_session_id,
+        conversation_id=agent_session_id,
         role="assistant",
         content_json={"text": text},
     )
     await db.flush()
-    await agent_session_repository.touch_updated_at(db, agent_session_id)
+    await conversation_repository.touch_updated_at(db, agent_session_id)
 
 
 def assistant_persist_text_from_result(*, llm_raw_output: str | None, test_cases_dump: list[dict]) -> str:
@@ -135,16 +134,16 @@ async def list_session_messages_for_user(
     db: AsyncSession,
     *,
     user_id: int,
-    session_uuid: UUID,
+    conversation_uuid: UUID,
 ) -> AgentSessionMessagesData:
-    row = await agent_session_repository.get_by_uuid_for_user(
+    row = await conversation_repository.get_by_uuid_for_user(
         db,
-        session_uuid=str(session_uuid),
+        conversation_uuid=str(conversation_uuid),
         user_id=user_id,
     )
     if row is None:
         raise NotFoundException("会话不存在或无权访问")
-    rows = await agent_message_repository.list_for_session(db, agent_session_id=row.id)
+    rows = await conversation_repository.list_messages(db, conversation_id=row.id)
     out: list[AgentHistoryMessageOut] = []
     for m in rows:
         role_raw = (m.role or "").strip()
@@ -162,7 +161,7 @@ async def list_session_messages_for_user(
             )
         )
     return AgentSessionMessagesData(
-        session_id=str(session_uuid),
+        session_id=str(conversation_uuid),
         title=(row.title or "").strip(),
         skill_id=row.skill_id,
         messages=out,
