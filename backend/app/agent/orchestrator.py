@@ -2,6 +2,7 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent.executor import execute_plan_steps
 from app.agent.input_normalizer import normalize_agent_input
 from app.agent.memory_service import (
     assistant_persist_text_from_result,
@@ -11,6 +12,8 @@ from app.agent.memory_service import (
     save_assistant_message,
     save_user_message,
 )
+from app.agent.planner import plan_for_chat
+from app.agent.policies import resolve_execution_policy
 from app.schemas.agent import AgentChatAckData, AgentChatRequest
 from app.schemas.llm_invoke import LlmInvokeConfig
 from app.contracts.skill import SkillContext
@@ -36,9 +39,9 @@ async def process_agent_chat(
         skill_id=skill_id,
         parts=parts,
     )
-    prior = await load_prior_messages(db, agent_session_id=resolved.row.id)
+    prior = await load_prior_messages(db, conversation_id=resolved.row.id)
 
-    await save_user_message(db, agent_session_id=resolved.row.id, parts=parts)
+    await save_user_message(db, conversation_id=resolved.row.id, parts=parts)
     await db.commit()
 
     llm_messages = None
@@ -56,14 +59,26 @@ async def process_agent_chat(
         llm_chat_messages=llm_messages,
         input_artifacts=[a.model_dump() for a in normalized.artifacts],
     )
-    result = await execute_skill(skill_id, ctx)
+    steps = plan_for_chat(normalized)
+    result, exec_result = await execute_plan_steps(
+        steps=steps,
+        call_skill=execute_skill,
+        skill_id=skill_id,
+        ctx=ctx,
+        policy=resolve_execution_policy(skill_id),
+    )
 
     dump = [c.model_dump() for c in result.test_cases]
     asst_text = assistant_persist_text_from_result(
         llm_raw_output=result.llm_raw_output,
         test_cases_dump=dump,
     )
-    await save_assistant_message(db, agent_session_id=resolved.row.id, text=asst_text)
+    await save_assistant_message(
+        db,
+        conversation_id=resolved.row.id,
+        text=asst_text,
+        execution=exec_result.model_dump(),
+    )
     await db.commit()
 
     return AgentChatAckData(

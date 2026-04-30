@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     agent_context_max_rounds: int = 6
     # 模型返回 JSON 数组时允许的最少条数（默认 1；若需与路线图 F1.7 对齐可改为 3）
     agent_min_generated_test_cases: int = Field(default=1, ge=1, le=100)
+    # 轻量计划执行策略
+    agent_max_plan_steps: int = Field(default=8, ge=1, le=100)
+    agent_max_tool_calls: int = Field(default=4, ge=1, le=100)
+    agent_step_timeout_seconds: float = Field(default=30.0, gt=0.0, le=300.0)
+    agent_step_timeout_seconds_test_case_gen: float = Field(default=60.0, gt=0.0, le=600.0)
+    agent_step_retry_times: int = Field(default=1, ge=0, le=5)
 
     # 技能包目录（阶段一 2.2.2）；可通过环境变量 SKILLS_DIR 覆盖绝对路径
     skills_dir: Path = Field(default_factory=_default_skills_dir)

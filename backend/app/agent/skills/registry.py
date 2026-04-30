@@ -22,6 +22,7 @@ class SkillPackageConfig(BaseModel):
     name: str = Field(default="")
     version: str = Field(default="0.0.0")
     description: str = Field(default="")
+    enabled: bool = Field(default=True)
 
 
 class SkillRegistry:
@@ -62,6 +63,9 @@ class SkillRegistry:
                     cfg.skill_id,
                 )
                 continue
+            if not cfg.enabled:
+                logger.info("技能已禁用，跳过注册: %s", cfg.skill_id)
+                continue
 
             try:
                 skill = _load_skill_module(cfg.skill_id, py_path)
@@ -75,6 +79,9 @@ class SkillRegistry:
                     cfg.skill_id,
                     skill.skill_id,
                 )
+                continue
+            if skill.skill_id in self._skills:
+                logger.error("检测到重复 skill_id，跳过后者: %s", skill.skill_id)
                 continue
 
             self._skills[skill.skill_id] = skill

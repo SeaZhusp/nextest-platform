@@ -14,7 +14,7 @@ from app.core.config import settings
 from app.core.exceptions import NotFoundException
 from app.models.conversation import Conversation, ConversationMessage
 from app.repositories.conversation_repository import conversation_repository
-from app.schemas.agent import AgentHistoryMessageOut, AgentSessionMessagesData, TextPart
+from app.schemas.agent import AgentExecutionOut, AgentHistoryMessageOut, AgentSessionMessagesData, TextPart
 from app.services.skill_service import SkillService
 
 
@@ -65,9 +65,9 @@ async def resolve_agent_session(
 async def load_prior_messages(
     db: AsyncSession,
     *,
-    agent_session_id: int,
+    conversation_id: int,
 ) -> list[ConversationMessage]:
-    return await conversation_repository.list_messages(db, conversation_id=agent_session_id)
+    return await conversation_repository.list_messages(db, conversation_id=conversation_id)
 
 
 def build_llm_messages_for_test_case_gen(
@@ -94,33 +94,37 @@ def _title_from_first_user_input(parts: list[TextPart], *, max_len: int = 200) -
 async def save_user_message(
     db: AsyncSession,
     *,
-    agent_session_id: int,
+    conversation_id: int,
     parts: list[TextPart],
 ) -> None:
     await conversation_repository.create_message(
         db,
-        conversation_id=agent_session_id,
+        conversation_id=conversation_id,
         role="user",
         content_json=_parts_to_content_json(parts),
     )
     await db.flush()
-    await conversation_repository.touch_updated_at(db, agent_session_id)
+    await conversation_repository.touch_updated_at(db, conversation_id)
 
 
 async def save_assistant_message(
     db: AsyncSession,
     *,
-    agent_session_id: int,
+    conversation_id: int,
     text: str,
+    execution: dict | None = None,
 ) -> None:
+    content_json: dict = {"text": text}
+    if execution is not None:
+        content_json["execution"] = execution
     await conversation_repository.create_message(
         db,
-        conversation_id=agent_session_id,
+        conversation_id=conversation_id,
         role="assistant",
-        content_json={"text": text},
+        content_json=content_json,
     )
     await db.flush()
-    await conversation_repository.touch_updated_at(db, agent_session_id)
+    await conversation_repository.touch_updated_at(db, conversation_id)
 
 
 def assistant_persist_text_from_result(*, llm_raw_output: str | None, test_cases_dump: list[dict]) -> str:
@@ -156,6 +160,7 @@ async def list_session_messages_for_user(
                 id=int(m.id),
                 role=role,
                 content_json=dict(m.content_json) if isinstance(m.content_json, dict) else {},
+                execution=_parse_execution_from_content_json(m.content_json),
                 created_at=m.created_at.isoformat() if m.created_at else "",
             )
         )
@@ -165,4 +170,16 @@ async def list_session_messages_for_user(
         skill_id=row.skill_id,
         messages=out,
     )
+
+
+def _parse_execution_from_content_json(content_json: object) -> AgentExecutionOut | None:
+    if not isinstance(content_json, dict):
+        return None
+    raw = content_json.get("execution")
+    if not isinstance(raw, dict):
+        return None
+    try:
+        return AgentExecutionOut.model_validate(raw)
+    except Exception:
+        return None
 

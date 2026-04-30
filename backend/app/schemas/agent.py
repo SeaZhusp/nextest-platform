@@ -174,7 +174,26 @@ class AgentHistoryMessageOut(BaseModel):
     id: int
     role: Literal["user", "assistant"]
     content_json: dict[str, Any]
+    execution: "AgentExecutionOut | None" = None
     created_at: str
+
+
+class AgentExecutionTraceOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    step_id: str
+    status: Literal["pending", "running", "succeeded", "failed", "skipped"]
+    duration_ms: int
+    error: str | None = None
+    output_summary: str = ""
+
+
+class AgentExecutionOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["succeeded", "failed", "partial"]
+    traces: list[AgentExecutionTraceOut] = Field(default_factory=list)
+    outputs: dict[str, Any] = Field(default_factory=dict)
 
 
 class AgentSessionMessagesData(BaseModel):
