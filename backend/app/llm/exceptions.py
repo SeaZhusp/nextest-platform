@@ -12,3 +12,7 @@ class LLMRateLimitError(LLMError):
 
 class LLMTimeoutError(LLMError):
     pass
+
+
+class LLMParseError(LLMError):
+    pass
