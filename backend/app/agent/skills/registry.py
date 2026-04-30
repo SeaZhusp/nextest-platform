@@ -6,11 +6,10 @@ import importlib.util
 import json
 import logging
 from pathlib import Path
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from app.services.skill.base import BaseSkill
+from app.contracts.skill import BaseSkill
 from app.schemas.skill import SkillMetaOut
 
 logger = logging.getLogger(__name__)
@@ -122,3 +121,4 @@ _registry = SkillRegistry()
 
 def get_skill_registry() -> SkillRegistry:
     return _registry
+

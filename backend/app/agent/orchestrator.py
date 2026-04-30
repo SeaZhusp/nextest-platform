@@ -1,12 +1,9 @@
-"""智能体编排：校验后的请求进入技能执行（阶段一）；2.2.4 起持久化会话与多轮上下文。"""
-
-from typing import cast
+"""智能体编排：校验后的请求进入技能执行；包含会话持久化与多轮上下文。"""
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.agent import AgentChatAckData, AgentChatRequest, TextPart
-from app.schemas.llm_invoke import LlmInvokeConfig
-from app.services.agent.memory_service import (
+from app.agent.input_normalizer import normalize_agent_input
+from app.agent.memory_service import (
     assistant_persist_text_from_result,
     build_llm_messages_for_test_case_gen,
     load_prior_messages,
@@ -14,8 +11,10 @@ from app.services.agent.memory_service import (
     save_assistant_message,
     save_user_message,
 )
-from app.services.skill.base import SkillContext
-from app.services.skill.executor import execute_skill
+from app.schemas.agent import AgentChatAckData, AgentChatRequest
+from app.schemas.llm_invoke import LlmInvokeConfig
+from app.contracts.skill import SkillContext
+from app.agent.skills.executor import execute_skill
 
 
 async def process_agent_chat(
@@ -25,10 +24,10 @@ async def process_agent_chat(
     *,
     user_id: int,
 ) -> AgentChatAckData:
-    assert payload.parts is not None
-    skill_id = (payload.skill_id or "test_case_gen").strip() or "test_case_gen"
-    parts = cast(list[TextPart], payload.parts)
-    user_text = "\n".join(p.text for p in parts)
+    normalized = normalize_agent_input(payload)
+    skill_id = normalized.skill_id
+    parts = normalized.text_parts
+    user_text = normalized.user_text
 
     resolved = await resolve_agent_session(
         db,
@@ -55,6 +54,7 @@ async def process_agent_chat(
         skill_id=skill_id,
         llm_config=llm_config,
         llm_chat_messages=llm_messages,
+        input_artifacts=[a.model_dump() for a in normalized.artifacts],
     )
     result = await execute_skill(skill_id, ctx)
 
@@ -72,3 +72,4 @@ async def process_agent_chat(
         parts=parts,
         test_cases=result.test_cases,
     )
+

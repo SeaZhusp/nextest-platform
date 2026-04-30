@@ -13,7 +13,7 @@ from app.schemas.user_llm_profile import (
     UserLlmProfileOut,
     UserLlmProfileUpdate,
 )
-from app.services.llm.client import chat_completion_content
+from app.llm.client import chat_completion_content
 
 
 def _key_last4(api_key: str) -> str:

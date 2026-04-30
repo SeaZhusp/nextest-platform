@@ -1,16 +1,14 @@
-"""会话 SSE 流（2.2.3 F1.9 / F1.10 + 2.2.4 会话记忆）。"""
+"""Agent SSE 流：流式执行与会话记忆持久化。"""
 
 from __future__ import annotations
 
 import json
 import logging
 from collections.abc import AsyncIterator
-from typing import Any, cast
+from typing import Any
 
-from app.db.session import session_factory
-from app.schemas.agent import AgentChatRequest, TextPart
-from app.schemas.llm_invoke import LlmInvokeConfig
-from app.services.agent.memory_service import (
+from app.agent.input_normalizer import normalize_agent_input
+from app.agent.memory_service import (
     assistant_persist_text_from_result,
     build_llm_messages_for_test_case_gen,
     load_prior_messages,
@@ -18,8 +16,11 @@ from app.services.agent.memory_service import (
     save_assistant_message,
     save_user_message,
 )
-from app.services.skill.base import SkillContext
-from app.services.skill.executor import execute_skill
+from app.db.session import session_factory
+from app.schemas.agent import AgentChatRequest
+from app.schemas.llm_invoke import LlmInvokeConfig
+from app.contracts.skill import SkillContext
+from app.agent.skills.executor import execute_skill
 from app.services.test_case_gen_llm import (
     parse_test_cases_from_llm_text,
     stream_llm_text_deltas,
@@ -40,11 +41,11 @@ async def iter_conversation_chat_sse(
     *,
     user_id: int,
 ) -> AsyncIterator[bytes]:
-    assert payload.parts is not None
-    skill_id = (payload.skill_id or "test_case_gen").strip() or "test_case_gen"
-    parts = cast(list[TextPart], payload.parts)
+    normalized = normalize_agent_input(payload)
+    skill_id = normalized.skill_id
+    parts = normalized.text_parts
     parts_dump = [p.model_dump() for p in parts]
-    user_text = "\n".join(p.text for p in parts)
+    user_text = normalized.user_text
 
     async with session_factory() as db:
         resolved = await resolve_agent_session(
@@ -67,6 +68,7 @@ async def iter_conversation_chat_sse(
                     session_id=sid,
                     skill_id=skill_id,
                     llm_config=llm_config,
+                    input_artifacts=[a.model_dump() for a in normalized.artifacts],
                 )
                 result = await execute_skill(skill_id, ctx)
                 dump = [c.model_dump() for c in result.test_cases]
@@ -154,3 +156,4 @@ async def iter_conversation_chat_sse(
         except Exception as e:
             logger.exception("SSE 编排异常")
             yield _sse("error", {"message": str(e) or "流式生成失败"})
+

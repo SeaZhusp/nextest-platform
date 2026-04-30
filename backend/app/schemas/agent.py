@@ -84,10 +84,11 @@ class AgentChatRequest(BaseModel):
         default=None,
         description="已有会话 ID（与 /agent/chat 或 /chat/stream 返回的 session_id 一致）；不传则创建新会话并持久化",
     )
-    skill_id: str | None = Field(
-        default="test_case_gen",
+    skill_id: str = Field(
+        ...,
+        min_length=1,
         max_length=64,
-        description="技能 ID，默认测试用例生成",
+        description="技能 ID（必填）",
     )
     parts: list[MessagePart] | None = Field(
         default=None,

@@ -9,7 +9,7 @@ from app.core.exception_handlers import register_exception_handlers
 from app.core.logger import setup_logging
 from app.core.middleware import setup_middleware
 from app.db.session import close_database
-from app.services.skill.registry import get_skill_registry
+from app.agent.skills.registry import get_skill_registry
 
 app_logger = logging.getLogger("nextest.api")
 

@@ -1,4 +1,4 @@
-"""技能基类与运行上下文（2.2.2：统一入参，便于 executor 与后续 LLM 编排）。"""
+"""Skill contracts shared by runtime and skill packages."""
 
 from __future__ import annotations
 
@@ -14,16 +14,20 @@ from app.schemas.testcase import TestCaseItem
 class SkillContext(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    user_text: str = Field(default="", description="当前轮用户文本（由 parts 拼接）")
+    user_text: str = Field(default="", description="Current user input text merged from parts.")
     session_id: str | None = None
     skill_id: str = ""
     llm_config: LlmInvokeConfig | None = Field(
         default=None,
-        description="当前轮用户自备大模型参数；未传则技能侧不调用 LLM",
+        description="Optional user-selected LLM config for this round.",
     )
     llm_chat_messages: list[dict[str, Any]] | None = Field(
         default=None,
-        description="多轮时由编排层注入的完整 chat messages（含 system 与历史）；仅 test_case_gen 等场景使用",
+        description="Optional chat messages prepared by orchestrator for multi-turn generation.",
+    )
+    input_artifacts: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Normalized input artifacts for multimodal-capable skills.",
     )
 
 
@@ -33,12 +37,12 @@ class SkillRunResult(BaseModel):
     test_cases: list[TestCaseItem] = Field(default_factory=list)
     llm_raw_output: str | None = Field(
         default=None,
-        description="助手消息持久化：模型输出原文（若有）",
+        description="Raw LLM output persisted as assistant message when available.",
     )
 
 
 class BaseSkill(ABC):
-    """技能实现需放在 backend/skills/<skill_id>/skill.py 并由 build_skill() 导出实例。"""
+    """Skills live under backend/skills/<skill_id>/skill.py and expose build_skill()."""
 
     @property
     @abstractmethod
@@ -58,4 +62,5 @@ class BaseSkill(ABC):
 
     @abstractmethod
     async def run(self, ctx: SkillContext) -> SkillRunResult:
-        """执行技能；禁止在此直接访问 DB（由编排层注入或后续扩展）。"""
+        """Run skill logic. DB access should stay in orchestrator/service layers."""
+

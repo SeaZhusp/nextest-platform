@@ -14,7 +14,7 @@ from app.schemas.skill import (
     SkillPlazaListData,
     SkillUpdate,
 )
-from app.services.skill.registry import get_skill_registry
+from app.agent.skills.registry import get_skill_registry
 
 
 def _registry_has(skill_id: str) -> bool:

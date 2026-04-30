@@ -15,7 +15,7 @@ from app.core.config import settings
 from app.core.exceptions import BusinessException
 from app.schemas.llm_invoke import LlmInvokeConfig
 from app.schemas.testcase import TestCaseItem
-from app.services.llm.client import chat_completion_content, chat_completion_stream_deltas
+from app.llm.client import chat_completion_content, chat_completion_stream_deltas
 
 logger = logging.getLogger(__name__)
 

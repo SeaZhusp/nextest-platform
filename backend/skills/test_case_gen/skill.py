@@ -10,7 +10,7 @@ import json
 import logging
 
 from app.core.exceptions import BusinessException
-from app.services.skill.base import BaseSkill, SkillContext, SkillRunResult
+from app.contracts.skill import BaseSkill, SkillContext, SkillRunResult
 from app.services.test_case_gen_llm import generate_test_cases_from_user_text, template_test_cases
 
 logger = logging.getLogger(__name__)

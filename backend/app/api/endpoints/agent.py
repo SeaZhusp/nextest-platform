@@ -9,6 +9,9 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent.memory_service import list_session_messages_for_user
+from app.agent.orchestrator import process_agent_chat
+from app.agent.stream import iter_conversation_chat_sse
 from app.api.deps.auth import CurrentUser, get_current_user
 from app.api.deps.query import Paging
 from app.core.exceptions import ValidationException
@@ -22,10 +25,7 @@ from app.schemas.agent import (
     AgentSessionSummaryOut,
 )
 from app.schemas.common import ApiResponse
-from app.services.agent.memory_service import list_session_messages_for_user
 from app.services.conversation_service import list_my_conversations, rename_conversation
-from app.services.agent_service import process_agent_chat
-from app.services.conversation_stream_service import iter_conversation_chat_sse
 from app.services.llm_resolve_service import resolve_user_llm_config
 
 router = APIRouter(prefix="/agent", tags=["agent"])

@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends
 from app.api.deps.auth import CurrentUser, get_current_user
 from app.schemas.common import ApiResponse
 from app.schemas.skill import SkillMetaOut
-from app.services.skill.base import SkillContext, SkillRunResult
-from app.services.skill.executor import execute_skill
+from app.contracts.skill import SkillContext, SkillRunResult
+from app.agent.skills.executor import execute_skill
 
 router = APIRouter(prefix="/skills", tags=["skills"])
 
@@ -24,7 +24,7 @@ class SkillInvokeRequest(BaseModel):
 async def list_skills(
     _user: CurrentUser = Depends(get_current_user),
 ) -> ApiResponse[list[SkillMetaOut]]:
-    from app.services.skill.registry import get_skill_registry
+    from app.agent.skills.registry import get_skill_registry
 
     return ApiResponse(data=get_skill_registry().list_meta())
 

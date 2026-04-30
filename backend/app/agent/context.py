@@ -1,7 +1,7 @@
 """
-智能体上下文组装（2.2.4 F1.12）：从已持久化消息截取最近 K 轮，拼入 LLM messages。
+智能体上下文组装：从已持久化消息截取最近 K 轮，拼入 LLM messages。
 
-一期仅将用户文本写入 user content；未知片段类型预留为跳过（与路线图 F1.21 一致）。
+一期仅将用户文本写入 user content；未知片段类型预留为跳过。
 """
 
 from __future__ import annotations
@@ -80,3 +80,4 @@ def build_test_case_gen_llm_messages(
             )
     out.append({"role": "user", "content": current_user_text.strip()})
     return out
+

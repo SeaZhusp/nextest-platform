@@ -1,4 +1,4 @@
-"""智能体会话记忆：解析 session、读写消息（2.2.4 F1.11 / F1.13）。"""
+"""智能体会话记忆：解析 session、读写消息。"""
 
 from __future__ import annotations
 
@@ -9,12 +9,12 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent.context import build_test_case_gen_llm_messages
 from app.core.config import settings
 from app.core.exceptions import NotFoundException
 from app.models.conversation import Conversation, ConversationMessage
 from app.repositories.conversation_repository import conversation_repository
 from app.schemas.agent import AgentHistoryMessageOut, AgentSessionMessagesData, TextPart
-from app.services.agent.context import build_test_case_gen_llm_messages
 from app.services.skill_service import SkillService
 
 
@@ -37,10 +37,10 @@ async def resolve_agent_session(
     skill_id: str,
     parts: list[TextPart] | None = None,
 ) -> ResolvedAgentSession:
-    sid = (skill_id or "test_case_gen").strip() or "test_case_gen"
+    # skill_id is validated at outer boundary (input normalizer).
+    sid = skill_id.strip()
     if session_id is None:
         new_uuid = uuid4()
-        # 新会话与首条用户输入同一次请求：用本轮 parts 直接作为标题（与即将写入的首条消息一致）
         initial_title = _title_from_first_user_input(parts or [])
         row = await conversation_repository.create_for_user(
             db,
@@ -72,7 +72,7 @@ async def load_prior_messages(
 
 def build_llm_messages_for_test_case_gen(
     *,
-    prior_messages: list,
+    prior_messages: list[ConversationMessage],
     current_user_text: str,
 ) -> list[dict]:
     return build_test_case_gen_llm_messages(
@@ -83,7 +83,6 @@ def build_llm_messages_for_test_case_gen(
 
 
 def _title_from_first_user_input(parts: list[TextPart], *, max_len: int = 200) -> str:
-    """首条用户输入作为标题，超长截断（与 agent_sessions.title 长度一致）。"""
     text = "\n".join(p.text for p in parts).strip()
     if not text:
         return ""
@@ -166,3 +165,4 @@ async def list_session_messages_for_user(
         skill_id=row.skill_id,
         messages=out,
     )
+
