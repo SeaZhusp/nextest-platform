@@ -196,6 +196,18 @@ class AgentExecutionOut(BaseModel):
     outputs: dict[str, Any] = Field(default_factory=dict)
 
 
+class AgentExecutionSummaryOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    session_id: str
+    total_assistant_messages: int
+    total_executions: int
+    succeeded: int
+    failed: int
+    total_duration_ms: int
+    last_status: Literal["succeeded", "failed", "partial"] | None = None
+
+
 class AgentSessionMessagesData(BaseModel):
     """某会话下全部消息（按时间升序）。"""
 

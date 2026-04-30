@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agent.memory_service import list_session_messages_for_user
+from app.agent.memory_service import get_execution_summary_for_user, list_session_messages_for_user
 from app.agent.orchestrator import process_agent_chat
 from app.agent.stream import iter_conversation_chat_sse
 from app.api.deps.auth import CurrentUser, get_current_user
@@ -23,6 +23,7 @@ from app.schemas.agent import (
     AgentSessionMessagesData,
     AgentSessionRenameRequest,
     AgentSessionSummaryOut,
+    AgentExecutionSummaryOut,
 )
 from app.schemas.common import ApiResponse
 from app.services.conversation_service import list_my_conversations, rename_conversation
@@ -54,7 +55,7 @@ async def chat(
         payload.temperature,
     )
     uid = _parse_user_id(user)
-    data = await process_agent_chat(payload, llm_cfg, db, user_id=uid)
+    data = await process_agent_chat(payload, llm_cfg, db, user_id=uid, user=user)
     return ApiResponse(data=data)
 
 
@@ -77,7 +78,7 @@ async def chat_stream(
     )
     uid = _parse_user_id(user)
     return StreamingResponse(
-        iter_conversation_chat_sse(payload, llm_cfg, user_id=uid),
+        iter_conversation_chat_sse(payload, llm_cfg, user_id=uid, user=user),
         media_type="text/event-stream; charset=utf-8",
         headers={
             "Cache-Control": "no-cache",
@@ -127,4 +128,18 @@ async def list_session_messages(
     """查询会话消息历史（2.2.4 F1.11）。"""
     uid = _parse_user_id(user)
     data = await list_session_messages_for_user(db, user_id=uid, conversation_uuid=session_id)
+    return ApiResponse(data=data)
+
+
+@router.get(
+    "/sessions/{session_id}/execution-summary",
+    response_model=ApiResponse[AgentExecutionSummaryOut],
+)
+async def get_execution_summary(
+    session_id: UUID,
+    user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[AgentExecutionSummaryOut]:
+    uid = _parse_user_id(user)
+    data = await get_execution_summary_for_user(db, user_id=uid, conversation_uuid=session_id)
     return ApiResponse(data=data)

@@ -22,6 +22,7 @@ from app.agent.memory_service import (
 from app.agent.planner import plan_for_chat
 from app.agent.policies import resolve_execution_policy
 from app.agent.types import ExecutionResult, ExecutionTrace
+from app.api.deps.auth import CurrentUser
 from app.db.session import session_factory
 from app.schemas.agent import AgentChatRequest
 from app.schemas.llm_invoke import LlmInvokeConfig
@@ -50,6 +51,7 @@ async def iter_conversation_chat_sse(
     llm_config: LlmInvokeConfig | None,
     *,
     user_id: int,
+    user: CurrentUser | None = None,
 ) -> AsyncIterator[bytes]:
     normalized = normalize_agent_input(payload)
     skill_id = normalized.skill_id
@@ -73,7 +75,7 @@ async def iter_conversation_chat_sse(
 
         try:
             steps = plan_for_chat(normalized)
-            policy = resolve_execution_policy(skill_id)
+            policy = resolve_execution_policy(skill_id, user=user)
             if skill_id != "test_case_gen":
                 ctx = SkillContext(
                     user_text=user_text,

@@ -14,7 +14,13 @@ from app.core.config import settings
 from app.core.exceptions import NotFoundException
 from app.models.conversation import Conversation, ConversationMessage
 from app.repositories.conversation_repository import conversation_repository
-from app.schemas.agent import AgentExecutionOut, AgentHistoryMessageOut, AgentSessionMessagesData, TextPart
+from app.schemas.agent import (
+    AgentExecutionOut,
+    AgentExecutionSummaryOut,
+    AgentHistoryMessageOut,
+    AgentSessionMessagesData,
+    TextPart,
+)
 from app.services.skill_service import SkillService
 
 
@@ -169,6 +175,47 @@ async def list_session_messages_for_user(
         title=(row.title or "").strip(),
         skill_id=row.skill_id,
         messages=out,
+    )
+
+
+async def get_execution_summary_for_user(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    conversation_uuid: UUID,
+) -> AgentExecutionSummaryOut:
+    row = await conversation_repository.get_by_uuid_for_user(
+        db,
+        conversation_uuid=str(conversation_uuid),
+        user_id=user_id,
+    )
+    if row is None:
+        raise NotFoundException("会话不存在或无权访问")
+    rows = await conversation_repository.list_messages(db, conversation_id=row.id)
+
+    assistant_rows = [m for m in rows if (m.role or "").strip() == "assistant"]
+    executions: list[AgentExecutionOut] = []
+    for m in assistant_rows:
+        ex = _parse_execution_from_content_json(m.content_json)
+        if ex is not None:
+            executions.append(ex)
+
+    succeeded = sum(1 for e in executions if e.status == "succeeded")
+    failed = sum(1 for e in executions if e.status == "failed")
+    total_duration_ms = 0
+    last_status = executions[-1].status if executions else None
+    for e in executions:
+        for t in e.traces:
+            total_duration_ms += int(t.duration_ms or 0)
+
+    return AgentExecutionSummaryOut(
+        session_id=str(conversation_uuid),
+        total_assistant_messages=len(assistant_rows),
+        total_executions=len(executions),
+        succeeded=succeeded,
+        failed=failed,
+        total_duration_ms=total_duration_ms,
+        last_status=last_status,
     )
 
 

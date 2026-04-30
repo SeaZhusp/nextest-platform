@@ -14,6 +14,7 @@ from app.agent.memory_service import (
 )
 from app.agent.planner import plan_for_chat
 from app.agent.policies import resolve_execution_policy
+from app.api.deps.auth import CurrentUser
 from app.schemas.agent import AgentChatAckData, AgentChatRequest
 from app.schemas.llm_invoke import LlmInvokeConfig
 from app.contracts.skill import SkillContext
@@ -26,6 +27,7 @@ async def process_agent_chat(
     db: AsyncSession,
     *,
     user_id: int,
+    user: CurrentUser | None = None,
 ) -> AgentChatAckData:
     normalized = normalize_agent_input(payload)
     skill_id = normalized.skill_id
@@ -65,7 +67,7 @@ async def process_agent_chat(
         call_skill=execute_skill,
         skill_id=skill_id,
         ctx=ctx,
-        policy=resolve_execution_policy(skill_id),
+        policy=resolve_execution_policy(skill_id, user=user),
     )
 
     dump = [c.model_dump() for c in result.test_cases]
