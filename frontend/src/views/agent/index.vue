@@ -360,8 +360,9 @@ async function handleSend() {
           }
           const msg = mockMessages.value[assistIdx]
           if (msg) {
-            msg.content = '执行完成'
+            msg.content = '执行完成，结果请查看输出区'
             msg.streaming = false
+            msg.streamContent = ''
             msg.currentStep = {
               stepId: 'done',
               label: '已完成',
@@ -519,10 +520,36 @@ function userTextFromApiMessage(content: Record<string, unknown>): string {
 }
 
 function assistantBriefFromApiMessage(content: Record<string, unknown>): string {
-  const text = typeof content.text === 'string' ? content.text : ''
-  if (!text) return '[助手回复]'
-  if (text.length > 360) return `${text.slice(0, 360)}…`
-  return text
+  const text = typeof content.text === 'string' ? content.text.trim() : ''
+  if (!text) return '执行完成，结果请查看输出区'
+  return '执行完成，结果请查看输出区'
+}
+
+function buildPlanStepsFromExecution(
+  execution: AgentHistoryMessageOut['execution']
+): AgentChatMessage['planSteps'] {
+  if (!execution?.traces?.length) return []
+  return execution.traces.map((t) => ({
+    stepId: t.step_id,
+    label: t.step_id,
+    status: t.status
+  }))
+}
+
+function buildCurrentStepFromExecution(
+  execution: AgentHistoryMessageOut['execution']
+): AgentChatMessage['currentStep'] {
+  if (!execution?.traces?.length) return null
+  const failed = execution.traces.find((t) => t.status === 'failed')
+  if (failed) {
+    return { stepId: failed.step_id, label: failed.step_id, status: 'failed' }
+  }
+  const running = execution.traces.find((t) => t.status === 'running')
+  if (running) {
+    return { stepId: running.step_id, label: running.step_id, status: 'running' }
+  }
+  const last = execution.traces[execution.traces.length - 1]
+  return { stepId: last.step_id, label: last.step_id, status: last.status }
 }
 
 function tryHydrateDocumentFromHistory(messages: AgentHistoryMessageOut[]): void {
@@ -612,7 +639,11 @@ async function onSelectHistorySession(payload: { sessionId: string; skillId: str
       content:
         m.role === 'user'
           ? userTextFromApiMessage(m.content_json as Record<string, unknown>)
-          : assistantBriefFromApiMessage(m.content_json as Record<string, unknown>)
+          : assistantBriefFromApiMessage(m.content_json as Record<string, unknown>),
+      streamContent: '',
+      streaming: false,
+      currentStep: m.role === 'assistant' ? buildCurrentStepFromExecution(m.execution) : null,
+      planSteps: m.role === 'assistant' ? buildPlanStepsFromExecution(m.execution) : []
     }))
     tryHydrateDocumentFromHistory(data.messages)
     message.success('已载入历史会话')
