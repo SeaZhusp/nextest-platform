@@ -12,96 +12,84 @@ defineProps<{
 const emit = defineEmits<{
   pick: [profileId: number]
 }>()
-
-function onPick(v: string | number) {
-  const n = typeof v === 'number' ? v : Number(v)
-  if (Number.isFinite(n)) emit('pick', n)
-}
 </script>
 
 <template>
-  <div class="composer-pop__body">
-    <div class="composer-pop__title">选择模型</div>
-    <a-select
-      :value="selectedProfileId"
-      class="composer-pop__select"
-      :loading="profilesLoading"
-      :disabled="profiles.length === 0 && !profilesLoading"
-      option-label-prop="label"
-      :dropdown-match-select-width="false"
-      :dropdown-style="{ minWidth: '260px', maxWidth: '360px' }"
-      popup-class-name="agent-chat-model-dropdown"
-      :placeholder="profiles.length === 0 ? '暂无模型配置' : '请选择模型'"
-      @update:value="onPick"
-    >
-      <template #optionLabel="opt">
-        <span v-if="opt" class="composer-model-opt__selection">
-          <LlmProviderIcon
-            v-if="opt.provider"
-            :meta="providerMeta(opt.provider)"
-            :size="18"
-          />
-          <span class="composer-model-opt__selection-text">{{ opt.label }}</span>
-        </span>
-      </template>
-      <a-select-opt-group v-if="profiles.length" label="我的配置">
-        <a-select-option
+  <div class="composer-picker">
+    <a-spin :spinning="profilesLoading">
+      <div v-if="!profilesLoading && !profiles.length" class="composer-picker__empty">
+        暂无模型配置
+      </div>
+      <div v-else class="composer-picker__list" role="listbox">
+        <button
           v-for="p in profiles"
           :key="p.id"
-          :value="p.id"
-          :label="p.display_name"
-          :provider="p.provider"
+          type="button"
+          class="composer-picker__row"
+          :class="{ 'composer-picker__row--active': p.id === selectedProfileId }"
+          role="option"
+          :aria-selected="p.id === selectedProfileId"
+          @click="emit('pick', p.id)"
         >
-          <div class="composer-model-opt__row">
+          <span class="composer-picker__icon" aria-hidden="true">
             <LlmProviderIcon :meta="providerMeta(p.provider)" :size="18" />
-            <span class="composer-model-opt__name">{{ p.display_name }}</span>
-            <a-tag color="success" class="composer-model-opt__tag">我的</a-tag>
-          </div>
-        </a-select-option>
-      </a-select-opt-group>
-    </a-select>
+          </span>
+          <span class="composer-picker__name">{{ p.display_name }}</span>
+        </button>
+      </div>
+    </a-spin>
   </div>
 </template>
 
 <style scoped lang="scss">
-.composer-pop__body {
-  min-width: 240px;
-}
-
-.composer-pop__title {
-  font-size: 12px;
-  color: #8c8c8c;
-  margin-bottom: 8px;
-}
-
-.composer-pop__select {
+.composer-picker {
   width: 280px;
   max-width: min(280px, 85vw);
 }
 
-.composer-model-opt__selection {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  max-width: 100%;
+.composer-picker__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 280px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 2px 0;
 }
 
-.composer-model-opt__selection-text {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.composer-model-opt__row {
+.composer-picker__row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-width: 0;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #262626;
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+
+  &:hover {
+    background: #e6f4ff;
+  }
+
+  &--active {
+    background: #e6f4ff;
+    color: #0958d9;
+  }
 }
 
-.composer-model-opt__name {
+.composer-picker__icon {
+  flex-shrink: 0;
+  display: inline-flex;
+}
+
+.composer-picker__name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -109,10 +97,10 @@ function onPick(v: string | number) {
   white-space: nowrap;
 }
 
-.composer-model-opt__tag {
-  margin: 0 !important;
-  flex-shrink: 0;
-  font-size: 11px;
-  line-height: 18px;
+.composer-picker__empty {
+  padding: 12px 10px;
+  font-size: 13px;
+  color: #8c8c8c;
+  text-align: center;
 }
 </style>

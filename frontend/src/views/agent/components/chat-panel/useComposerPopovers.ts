@@ -1,6 +1,6 @@
 import { ref, watch } from 'vue'
 
-/** 技能 / 模型 / 温度三个 Popover 互斥，并提供从 tag 打开的入口 */
+/** 技能 / 模型 / 温度三个 Popover 互斥（由工具栏图标点击打开） */
 export function useComposerPopovers() {
   const skillPopoverOpen = ref(false)
   const modelPopoverOpen = ref(false)
@@ -27,30 +27,9 @@ export function useComposerPopovers() {
     }
   })
 
-  function openSkillPopover() {
-    modelPopoverOpen.value = false
-    tempPopoverOpen.value = false
-    skillPopoverOpen.value = true
-  }
-
-  function openModelPopover() {
-    skillPopoverOpen.value = false
-    tempPopoverOpen.value = false
-    modelPopoverOpen.value = true
-  }
-
-  function openTempPopover() {
-    skillPopoverOpen.value = false
-    modelPopoverOpen.value = false
-    tempPopoverOpen.value = true
-  }
-
   return {
     skillPopoverOpen,
     modelPopoverOpen,
-    tempPopoverOpen,
-    openSkillPopover,
-    openModelPopover,
-    openTempPopover
+    tempPopoverOpen
   }
 }

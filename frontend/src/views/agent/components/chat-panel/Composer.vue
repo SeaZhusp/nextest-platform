@@ -25,14 +25,7 @@ const emit = defineEmits<{
   'skill-change': [skillId: string]
 }>()
 
-const {
-  skillPopoverOpen,
-  modelPopoverOpen,
-  tempPopoverOpen,
-  openSkillPopover,
-  openModelPopover,
-  openTempPopover
-} = useComposerPopovers()
+const { skillPopoverOpen, modelPopoverOpen, tempPopoverOpen } = useComposerPopovers()
 
 const skillSelectOptions = computed(() => {
   const base = props.skills.map((s) => ({
@@ -116,9 +109,6 @@ function onModelPick(profileId: number) {
         :model-label="currentModelLabel"
         :temperature-tag-text="temperatureTagText"
         :model-selected="selectedProfileId != null"
-        @open-skill="openSkillPopover"
-        @open-model="openModelPopover"
-        @open-temp="openTempPopover"
       />
     </div>
   </footer>
@@ -146,17 +136,12 @@ function onModelPick(profileId: number) {
 </style>
 
 <style lang="scss">
-.agent-chat-model-dropdown.ant-select-dropdown {
-  min-width: 260px !important;
-  max-width: 360px !important;
-}
-
-.agent-chat-skill-dropdown.ant-select-dropdown {
-  min-width: 220px !important;
-  max-width: 340px !important;
-}
-
 .composer-pop-overlay .ant-popover-inner {
-  padding: 12px 14px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  box-shadow:
+    0 6px 16px 0 rgba(0, 0, 0, 0.08),
+    0 3px 6px -4px rgba(0, 0, 0, 0.12),
+    0 9px 28px 8px rgba(0, 0, 0, 0.05);
 }
 </style>

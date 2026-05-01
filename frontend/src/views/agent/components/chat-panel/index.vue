@@ -24,14 +24,17 @@ const temperature = defineModel<number>('temperature', { default: 0.7 })
 const emit = defineEmits<{
   send: []
   'new-session': []
-  history: []
+  'select-history-session': [payload: { sessionId: string; skillId: string }]
   'skill-change': [skillId: string]
 }>()
 </script>
 
 <template>
   <section class="agent-chat">
-    <Header @new-session="emit('new-session')" @history="emit('history')" />
+    <Header
+      @new-session="emit('new-session')"
+      @select-history-session="emit('select-history-session', $event)"
+    />
     <Welcome v-if="messages.length === 0" />
     <MessageList :messages="messages" />
     <Composer
@@ -58,6 +61,13 @@ const emit = defineEmits<{
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   background: #fafafa;
+}
+
+.agent-chat > :deep(.agent-chat__header),
+.agent-chat > :deep(.agent-chat__welcome),
+.agent-chat > :deep(.agent-chat__composer-outer) {
+  flex-shrink: 0;
 }
 </style>

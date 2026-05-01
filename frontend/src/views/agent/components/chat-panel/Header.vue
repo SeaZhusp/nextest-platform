@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { PlusOutlined, HistoryOutlined, RobotOutlined } from '@ant-design/icons-vue'
+import SessionHistoryDrawer from './SessionHistoryDrawer.vue'
 
 const emit = defineEmits<{
   'new-session': []
-  history: []
+  'select-history-session': [payload: { sessionId: string; skillId: string }]
 }>()
+
+const historyOpen = ref(false)
 </script>
 
 <template>
@@ -17,9 +21,11 @@ const emit = defineEmits<{
       <a-button type="text" size="small" title="新会话" @click="emit('new-session')">
         <PlusOutlined />
       </a-button>
-      <a-button type="text" size="small" title="历史" @click="emit('history')">
-        <HistoryOutlined />
-      </a-button>
+      <SessionHistoryDrawer v-model:open="historyOpen" @select="emit('select-history-session', $event)">
+        <a-button type="text" size="small" title="历史">
+          <HistoryOutlined />
+        </a-button>
+      </SessionHistoryDrawer>
     </div>
   </header>
 </template>
@@ -51,5 +57,6 @@ const emit = defineEmits<{
 .agent-chat__header-actions {
   display: flex;
   gap: 4px;
+  align-items: center;
 }
 </style>

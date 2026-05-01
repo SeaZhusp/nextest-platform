@@ -5,27 +5,17 @@ defineProps<{
   temperatureTagText: string
   modelSelected: boolean
 }>()
-
-const emit = defineEmits<{
-  'open-skill': []
-  'open-model': []
-  'open-temp': []
-}>()
 </script>
 
 <template>
   <div class="composer-card__tags">
-    <a-tag class="composer-tag" color="processing" @click="emit('open-skill')">
+    <a-tag class="composer-tag" color="processing">
       {{ skillLabel }}
     </a-tag>
-    <a-tag
-      class="composer-tag"
-      :color="modelSelected ? 'blue' : 'warning'"
-      @click="emit('open-model')"
-    >
+    <a-tag class="composer-tag" :color="modelSelected ? 'blue' : 'warning'">
       {{ modelLabel }}
     </a-tag>
-    <a-tag class="composer-tag" @click="emit('open-temp')">
+    <a-tag class="composer-tag">
       {{ temperatureTagText }}
     </a-tag>
   </div>
@@ -43,12 +33,8 @@ const emit = defineEmits<{
 .composer-tag {
   margin: 0 !important;
   max-width: 100%;
-  cursor: pointer;
+  cursor: default;
   overflow: hidden;
   text-overflow: ellipsis;
-
-  &:hover {
-    opacity: 0.92;
-  }
 }
 </style>

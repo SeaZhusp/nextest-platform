@@ -16,7 +16,6 @@ import type { TestCaseItem } from '@/schemas/testcase'
 import type { UserLlmProfileOut } from '@/schemas/userLlmProfile'
 import AgentOutputPanel from './components/AgentOutputPanel.vue'
 import AgentChatPanel from './components/chat-panel/index.vue'
-import SessionHistoryDrawer from './components/chat-panel/SessionHistoryDrawer.vue'
 import type { AgentChatMessage, AgentOutputTabKey } from './types'
 
 const route = useRoute()
@@ -292,12 +291,6 @@ watch(
   { immediate: true }
 )
 
-const historyDrawerOpen = ref(false)
-
-function handleHistory() {
-  historyDrawerOpen.value = true
-}
-
 function userTextFromApiMessage(content: Record<string, unknown>): string {
   const parts = content.parts
   if (!Array.isArray(parts)) return ''
@@ -513,7 +506,6 @@ onUnmounted(() => {
 
 <template>
   <div class="agent-page">
-    <SessionHistoryDrawer v-model:open="historyDrawerOpen" @select="onSelectHistorySession" />
     <div
       ref="agentBodyRef"
       class="agent-body"
@@ -554,7 +546,7 @@ onUnmounted(() => {
           :profiles-loading="profilesLoading"
           @send="handleSend"
           @new-session="handleNewSession"
-          @history="handleHistory"
+          @select-history-session="onSelectHistorySession"
           @skill-change="handleSkillChange"
         />
       </div>
@@ -563,11 +555,15 @@ onUnmounted(() => {
 </template>
 
 <style lang="scss" scoped>
+/* 与主布局 content 的 marginTop + padding 对齐，避免整页被对话撑高，滚动留在对话区内 */
 .agent-page {
-  height: 100%;
-  min-height: calc(100vh - 128px);
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  height: calc(100vh - 128px);
+  max-height: calc(100vh - 128px);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .agent-body {
@@ -577,8 +573,8 @@ onUnmounted(() => {
   align-items: stretch;
   gap: 0;
   min-height: 0;
-  border-radius: 8px;
   overflow: hidden;
+  border-radius: 8px;
   border: 1px solid #e8e8e8;
   background: #fff;
 }
@@ -618,5 +614,6 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow: hidden;
 }
 </style>
