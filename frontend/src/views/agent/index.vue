@@ -2,6 +2,16 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
+import {
+  AppstoreOutlined,
+  ColumnWidthOutlined,
+  CommentOutlined,
+  FullscreenExitOutlined,
+  FullscreenOutlined,
+  HistoryOutlined,
+  PlusOutlined,
+  RobotOutlined
+} from '@ant-design/icons-vue'
 import { getAgentSessionMessages, postAgentChatStream } from '@/api/agent'
 import { listUserLlmProfiles } from '@/api/userLlmProfiles'
 import type { AgentStreamDonePayload } from '@/schemas/agent'
@@ -16,6 +26,7 @@ import type { TestCaseItem } from '@/schemas/testcase'
 import type { UserLlmProfileOut } from '@/schemas/userLlmProfile'
 import AgentOutputPanel from './components/AgentOutputPanel.vue'
 import AgentChatPanel from './components/chat-panel/index.vue'
+import SessionHistoryDrawer from './components/chat-panel/SessionHistoryDrawer.vue'
 import type { AgentChatMessage, AgentOutputTabKey } from './types'
 
 const route = useRoute()
@@ -366,16 +377,26 @@ async function onSelectHistorySession(payload: { sessionId: string; skillId: str
 
 /** 输出区与对话区之间的可拖拽分隔（对话区固定宽度，输出区占满剩余） */
 const AGENT_CHAT_WIDTH_KEY = 'agent_chat_panel_width'
+const AGENT_LAYOUT_MODE_KEY = 'agent_layout_mode'
 const CHAT_PANEL_MIN = 280
 const OUTPUT_PANEL_MIN = 260
 const RESIZER_WIDTH = 6
 const DEFAULT_CHAT_WIDTH = 400
+type AgentLayoutMode = 'split' | 'output-only' | 'chat-only'
 
 const agentBodyRef = ref<HTMLElement | null>(null)
 const chatPanelWidthPx = ref(DEFAULT_CHAT_WIDTH)
 const resizeDragging = ref(false)
+const layoutMode = ref<AgentLayoutMode>('split')
+const historyOpen = ref(false)
+const immersiveMode = ref(false)
 let resizeStartX = 0
 let resizeStartW = 0
+
+function displaySessionId(): string {
+  if (!sessionId.value) return '未建立'
+  return `${sessionId.value.slice(0, 8)}…`
+}
 
 function clampChatWidth(w: number, bodyWidth: number): number {
   const maxChat = Math.max(CHAT_PANEL_MIN, bodyWidth - OUTPUT_PANEL_MIN - RESIZER_WIDTH)
@@ -394,7 +415,50 @@ function readStoredChatWidth(): void {
   }
 }
 
+function readStoredLayoutMode(): void {
+  try {
+    const raw = localStorage.getItem(AGENT_LAYOUT_MODE_KEY)
+    if (raw === 'split' || raw === 'output-only' || raw === 'chat-only') {
+      layoutMode.value = raw
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function saveLayoutMode(mode: AgentLayoutMode): void {
+  try {
+    localStorage.setItem(AGENT_LAYOUT_MODE_KEY, mode)
+  } catch {
+    /* ignore */
+  }
+}
+
+function setLayoutMode(mode: AgentLayoutMode): void {
+  layoutMode.value = mode
+  saveLayoutMode(mode)
+  if (mode === 'split') {
+    requestAnimationFrame(() => applyChatWidthToBody())
+  }
+}
+
+function toggleImmersiveMode(): void {
+  immersiveMode.value = !immersiveMode.value
+}
+
+function restoreFromMaximize(): void {
+  immersiveMode.value = false
+}
+
+function onGlobalKeydown(e: KeyboardEvent): void {
+  if (e.key === 'Escape' && immersiveMode.value) {
+    e.preventDefault()
+    restoreFromMaximize()
+  }
+}
+
 function onResizePointerMove(clientX: number) {
+  if (layoutMode.value !== 'split') return
   if (!resizeDragging.value || !agentBodyRef.value) return
   const bodyW = agentBodyRef.value.getBoundingClientRect().width
   const delta = clientX - resizeStartX
@@ -442,6 +506,7 @@ function onResizeTouchEnd() {
 }
 
 function onResizeStart(e: MouseEvent) {
+  if (layoutMode.value !== 'split') return
   e.preventDefault()
   resizeDragging.value = true
   resizeStartX = e.clientX
@@ -451,6 +516,7 @@ function onResizeStart(e: MouseEvent) {
 }
 
 function onResizePointerStart(e: PointerEvent) {
+  if (layoutMode.value !== 'split') return
   // 统一 mouse/touch/pen，解决部分 Windows 设备不触发 mousemove 的问题
   e.preventDefault()
   resizeDragging.value = true
@@ -461,6 +527,7 @@ function onResizePointerStart(e: PointerEvent) {
 }
 
 function onResizeTouchStart(e: TouchEvent) {
+  if (layoutMode.value !== 'split') return
   const t = e.touches[0]
   if (!t) return
   e.preventDefault()
@@ -472,6 +539,7 @@ function onResizeTouchStart(e: TouchEvent) {
 }
 
 function onResizeKeydown(e: KeyboardEvent) {
+  if (layoutMode.value !== 'split') return
   if (!agentBodyRef.value) return
   const bodyW = agentBodyRef.value.getBoundingClientRect().width
   if (e.key === 'ArrowLeft') {
@@ -500,6 +568,7 @@ function applyChatWidthToBody() {
 }
 
 onMounted(() => {
+  readStoredLayoutMode()
   readStoredChatWidth()
   requestAnimationFrame(() => applyChatWidthToBody())
   window.addEventListener('mousemove', onResizeMouseMove)
@@ -511,6 +580,7 @@ onMounted(() => {
   window.addEventListener('touchend', onResizeTouchEnd)
   window.addEventListener('touchcancel', onResizeTouchEnd)
   window.addEventListener('resize', applyChatWidthToBody)
+  window.addEventListener('keydown', onGlobalKeydown)
 })
 
 onUnmounted(() => {
@@ -523,19 +593,84 @@ onUnmounted(() => {
   window.removeEventListener('touchend', onResizeTouchEnd)
   window.removeEventListener('touchcancel', onResizeTouchEnd)
   window.removeEventListener('resize', applyChatWidthToBody)
+  window.removeEventListener('keydown', onGlobalKeydown)
   document.body.style.removeProperty('cursor')
   document.body.style.removeProperty('user-select')
 })
 </script>
 
 <template>
-  <div class="agent-page">
+  <div class="agent-page" :class="{ 'agent-page--immersive': immersiveMode }">
+    <div class="agent-page__workbench-head">
+      <div class="agent-page__head-left">
+        <span class="agent-page__head-title">
+          <RobotOutlined />
+          <span>测试智能体</span>
+        </span>
+        <span class="agent-page__head-session" :title="sessionId || undefined">
+          会话：{{ displaySessionId() }}
+        </span>
+      </div>
+      <div class="agent-page__head-center">
+        <a-radio-group
+          size="small"
+          :value="layoutMode"
+          button-style="solid"
+          @update:value="setLayoutMode"
+        >
+          <a-radio-button value="split">
+            <a-tooltip title="双栏">
+              <ColumnWidthOutlined />
+            </a-tooltip>
+          </a-radio-button>
+          <a-radio-button value="output-only">
+            <a-tooltip title="仅输出区">
+              <AppstoreOutlined />
+            </a-tooltip>
+          </a-radio-button>
+          <a-radio-button value="chat-only">
+            <a-tooltip title="仅对话区">
+              <CommentOutlined />
+            </a-tooltip>
+          </a-radio-button>
+        </a-radio-group>
+      </div>
+      <div class="agent-page__head-actions">
+        <a-tooltip :title="immersiveMode ? '退出沉浸模式' : '沉浸模式'">
+          <a-button
+            type="text"
+            size="small"
+            :class="{ 'agent-page__max-btn--active': immersiveMode }"
+            @click="toggleImmersiveMode"
+          >
+            <template #icon>
+              <FullscreenOutlined v-if="!immersiveMode" />
+              <FullscreenExitOutlined v-else />
+            </template>
+          </a-button>
+        </a-tooltip>
+        <a-button type="text" size="small" title="新会话" @click="handleNewSession">
+          <template #icon><PlusOutlined /></template>
+          新会话
+        </a-button>
+        <SessionHistoryDrawer v-model:open="historyOpen" @select="onSelectHistorySession">
+          <a-button type="text" size="small" title="历史会话">
+            <template #icon><HistoryOutlined /></template>
+            历史
+          </a-button>
+        </SessionHistoryDrawer>
+      </div>
+    </div>
     <div
       ref="agentBodyRef"
       class="agent-body"
-      :class="{ 'agent-body--resizing': resizeDragging }"
+      :class="{
+        'agent-body--resizing': resizeDragging,
+        'agent-body--output-only': layoutMode === 'output-only',
+        'agent-body--chat-only': layoutMode === 'chat-only'
+      }"
     >
-      <div class="agent-body__output">
+      <div v-show="layoutMode !== 'chat-only'" class="agent-body__output">
         <AgentOutputPanel
           v-model:editor-json="editorJsonText"
           v-model:output-tab="outputTab"
@@ -547,6 +682,7 @@ onUnmounted(() => {
         />
       </div>
       <div
+        v-show="layoutMode === 'split'"
         class="agent-body__resizer"
         role="separator"
         aria-orientation="vertical"
@@ -557,7 +693,11 @@ onUnmounted(() => {
         @touchstart.prevent="onResizeTouchStart"
         @keydown="onResizeKeydown"
       />
-      <div class="agent-body__chat" :style="{ width: `${chatPanelWidthPx}px` }">
+      <div
+        v-show="layoutMode !== 'output-only'"
+        class="agent-body__chat"
+        :style="layoutMode === 'split' ? { width: `${chatPanelWidthPx}px` } : undefined"
+      >
         <AgentChatPanel
           v-model:input-text="inputText"
           v-model:selected-profile-id="selectedProfileId"
@@ -570,8 +710,6 @@ onUnmounted(() => {
           :profiles="llmProfiles"
           :profiles-loading="profilesLoading"
           @send="handleSend"
-          @new-session="handleNewSession"
-          @select-history-session="onSelectHistorySession"
           @skill-change="handleSkillChange"
         />
       </div>
@@ -589,6 +727,72 @@ onUnmounted(() => {
   max-height: calc(100vh - 128px);
   min-height: 0;
   overflow: hidden;
+}
+
+.agent-page--immersive {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #f5f5f5;
+  height: 100vh;
+  max-height: 100vh;
+  border-radius: 0;
+  padding: 8px;
+}
+
+.agent-page__workbench-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.agent-page__head-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.agent-page__head-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.agent-page__head-session {
+  color: #8c8c8c;
+  font-size: 12px;
+  font-family: Consolas, Monaco, monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.agent-page__head-center {
+  flex-shrink: 0;
+}
+
+.agent-page__head-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.agent-page__max-btn--active {
+  color: #1677ff;
+  background: #e6f4ff;
 }
 
 .agent-body {
@@ -610,6 +814,12 @@ onUnmounted(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+.agent-body--output-only .agent-body__output,
+.agent-body--chat-only .agent-body__chat {
+  flex: 1;
+  width: 100%;
 }
 
 .agent-body__resizer {

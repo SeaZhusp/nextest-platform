@@ -2,7 +2,6 @@
 import type { AgentChatMessage } from '../../types'
 import type { UserLlmProfileOut } from '@/schemas/userLlmProfile'
 import type { SkillMetaOut } from '@/schemas/skill'
-import Header from './Header.vue'
 import Welcome from './Welcome.vue'
 import MessageList from './MessageList.vue'
 import Composer from './Composer.vue'
@@ -23,18 +22,12 @@ const temperature = defineModel<number>('temperature', { default: 0.7 })
 
 const emit = defineEmits<{
   send: []
-  'new-session': []
-  'select-history-session': [payload: { sessionId: string; skillId: string }]
   'skill-change': [skillId: string]
 }>()
 </script>
 
 <template>
   <section class="agent-chat">
-    <Header
-      @new-session="emit('new-session')"
-      @select-history-session="emit('select-history-session', $event)"
-    />
     <Welcome v-if="messages.length === 0" />
     <MessageList :messages="messages" />
     <Composer
