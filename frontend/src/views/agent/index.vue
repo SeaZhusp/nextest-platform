@@ -422,6 +422,14 @@ function onResizeMouseUp() {
   onResizePointerUp()
 }
 
+function onResizePointerMoveEvent(e: PointerEvent) {
+  onResizePointerMove(e.clientX)
+}
+
+function onResizePointerUpEvent() {
+  onResizePointerUp()
+}
+
 function onResizeTouchMove(e: TouchEvent) {
   if (!resizeDragging.value) return
   e.preventDefault()
@@ -434,6 +442,16 @@ function onResizeTouchEnd() {
 }
 
 function onResizeStart(e: MouseEvent) {
+  e.preventDefault()
+  resizeDragging.value = true
+  resizeStartX = e.clientX
+  resizeStartW = chatPanelWidthPx.value
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+}
+
+function onResizePointerStart(e: PointerEvent) {
+  // 统一 mouse/touch/pen，解决部分 Windows 设备不触发 mousemove 的问题
   e.preventDefault()
   resizeDragging.value = true
   resizeStartX = e.clientX
@@ -486,6 +504,9 @@ onMounted(() => {
   requestAnimationFrame(() => applyChatWidthToBody())
   window.addEventListener('mousemove', onResizeMouseMove)
   window.addEventListener('mouseup', onResizeMouseUp)
+  window.addEventListener('pointermove', onResizePointerMoveEvent)
+  window.addEventListener('pointerup', onResizePointerUpEvent)
+  window.addEventListener('pointercancel', onResizePointerUpEvent)
   window.addEventListener('touchmove', onResizeTouchMove, { passive: false })
   window.addEventListener('touchend', onResizeTouchEnd)
   window.addEventListener('touchcancel', onResizeTouchEnd)
@@ -495,6 +516,9 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('mousemove', onResizeMouseMove)
   window.removeEventListener('mouseup', onResizeMouseUp)
+  window.removeEventListener('pointermove', onResizePointerMoveEvent)
+  window.removeEventListener('pointerup', onResizePointerUpEvent)
+  window.removeEventListener('pointercancel', onResizePointerUpEvent)
   window.removeEventListener('touchmove', onResizeTouchMove)
   window.removeEventListener('touchend', onResizeTouchEnd)
   window.removeEventListener('touchcancel', onResizeTouchEnd)
@@ -528,6 +552,7 @@ onUnmounted(() => {
         aria-orientation="vertical"
         aria-label="拖动调节输出区与对话区宽度"
         tabindex="0"
+        @pointerdown="onResizePointerStart"
         @mousedown="onResizeStart"
         @touchstart.prevent="onResizeTouchStart"
         @keydown="onResizeKeydown"
