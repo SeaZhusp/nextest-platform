@@ -73,7 +73,7 @@ function removeRow(rowKey: string) {
       :columns="props.columns"
       :data-source="tableRows"
       :pagination="false"
-      :scroll="{ x: 1100, y: 'calc(100vh - 320px)' }"
+      :scroll="{ x: 1100 }"
       size="small"
       bordered
     >

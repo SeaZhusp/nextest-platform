@@ -59,27 +59,27 @@ function onRestoreRaw() {
 
 <template>
   <section class="agent-output">
-    <div class="agent-output__toolbar">
-      <div class="agent-output__actions">
-        <a-button size="small" @click="markdownPreview = !markdownPreview" v-if="outputTab === 'markdown'">
-          {{ markdownPreview ? '编辑' : '预览' }}
-        </a-button>
-        <a-button size="small" :disabled="!props.canRestoreRaw" @click="onRestoreRaw">
-          <template #icon>
-            <HistoryOutlined />
-          </template>
-          恢复原始版
-        </a-button>
-        <a-button type="primary" size="small" @click="onSave">
-          <template #icon>
-            <SaveOutlined />
-          </template>
-          保存
-        </a-button>
-      </div>
-    </div>
-
     <a-tabs v-model:activeKey="outputTab" class="agent-output__tabs" type="card">
+      <template #rightExtra>
+        <div class="agent-output__actions">
+          <a-button size="small" @click="markdownPreview = !markdownPreview" v-if="outputTab === 'markdown'">
+            {{ markdownPreview ? '编辑' : '预览' }}
+          </a-button>
+          <a-button size="small" :disabled="!props.canRestoreRaw" @click="onRestoreRaw">
+            <template #icon>
+              <HistoryOutlined />
+            </template>
+            恢复原始版
+          </a-button>
+          <a-button type="primary" size="small" @click="onSave">
+            <template #icon>
+              <SaveOutlined />
+            </template>
+            保存
+          </a-button>
+        </div>
+      </template>
+
       <a-tab-pane key="table" v-if="hasMode('table')">
         <template #tab>
           <span><UnorderedListOutlined /> 表格</span>
@@ -120,19 +120,11 @@ function onRestoreRaw() {
   color: #262626;
 }
 
-.agent-output__toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 8px 12px;
-  background: #fff;
-  border-bottom: 1px solid #f0f0f0;
-}
-
 .agent-output__actions {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding-right: 8px;
 }
 
 .agent-output__tabs {
@@ -177,8 +169,8 @@ function onRestoreRaw() {
 }
 
 .agent-output__pane {
-  height: calc(100vh - 280px);
-  min-height: 360px;
+  height: 100%;
+  min-height: 0;
   overflow: auto;
 }
 
