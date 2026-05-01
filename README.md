@@ -1,4 +1,4 @@
-# NexTest Platform · 测试智能体平台
+# NexTest Platform · 下一代测试平台
 
 **技能驱动的测试智能体 Web 平台：用户 LLM 配置、对话（含 SSE），API 统一在 `/api`。**  
 *A web platform for test-oriented agents: Vue 3 + FastAPI + MySQL.*
@@ -10,24 +10,18 @@
 
 ---
 
-## 适合谁用
+## 用例生成演示
 
-- 需要在**团队内**搭建「选技能 + 选模型」的测试辅助对话能力，并希望会话与配置落在自有服务与数据库中的团队  
-- 希望**扩展技能包**（`backend/skills/` 目录注册）并接入统一智能体对话流程的开发者  
-- 熟悉 **Vue 3 / FastAPI**，愿意基于当前分层（`api → services → repositories → models`）继续迭代的同学  
-
-> 与纯聊天应用的区别：对话按 **skill_id** 走已注册技能流水线，模型走用户保存的 **OpenAI 兼容** 端点配置，而非单一全局 Key。
-
----
+- 用例生成演示视频：[`imgs/testcase_gen.mp4`](imgs/testcase_gen.mp4)
 
 ## 功能一览（当前实现）
 
 | 模块 | 说明 |
 |------|------|
 | **认证** | 注册、登录、刷新令牌、`/api/auth/me`；请求头 `Authorization: Bearer <access_token>` |
-| **测试智能体** | 非流式 `/api/agent/chat`、SSE `/api/agent/chat/stream`；会话列表、重命名、历史消息； |
+| **测试助手** | 非流式 `/api/agent/chat`、SSE `/api/agent/chat/stream`；会话列表、重命名、历史消息； |
 | **用户 LLM 配置** | 多配置 CRUD、保存前连通性测试、启用项；对话中可选 `llm_profile_id` 与 `temperature` |
-| **技能（运行时）** | 启动时从 `skills` 目录加载注册；`/api/skills` 元数据列表与独立 `invoke` |
+| **技能（运行时）** | 启动时从 `skills` 目录加载注册（每个技能目录需同时包含 `config.json` + `skill.py`）；`/api/skills` 元数据列表与独立 `invoke` |
 | **系统管理（admin）** | 用户列表与启用状态，`/api/admin/users` |
 | **前端控制台** | 首页、智能体页、模型配置；侧栏按 `user_type === admin` 显示系统管理 |
 
@@ -42,16 +36,6 @@
 | API | Python ≥ 3.13、FastAPI、Uvicorn、Pydantic Settings、JWT（PyJWT）、Loguru |
 | 数据 | MySQL（SQLAlchemy 2 异步 + `asyncmy`）、Alembic 迁移 |
 | 技能 | 文件系统技能包 + 启动注册（`SKILLS_DIR` 可覆盖路径） |
-
-```mermaid
-flowchart LR
-  subgraph Client[浏览器]
-    UI[Vue SPA]
-  end
-  UI -->|开发: Vite 代理 /api| API[FastAPI /api]
-  API --> DB[(MySQL)]
-  API --> SK[skills 目录]
-```
 
 ---
 

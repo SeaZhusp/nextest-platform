@@ -59,12 +59,14 @@ def _config_path(skill_id: str) -> Path:
 
 def load_skill_config(skill_id: str) -> SkillConfig:
     path = _config_path(skill_id)
+    if not path.is_file():
+        raise FileNotFoundError(f"技能配置不存在: {path}")
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(raw, dict):
             raw = {}
     except Exception:
-        logger.debug("读取 skill config.json 失败: %s", path, exc_info=True)
-        raw = {}
+        logger.error("读取 skill config.json 失败: %s", path)
+        raise
     return SkillConfig(skill_id=skill_id, raw=raw)
 

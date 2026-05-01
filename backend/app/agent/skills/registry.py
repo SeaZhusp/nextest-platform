@@ -19,12 +19,12 @@ class SkillPackageConfig(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     skill_id: str = Field(..., min_length=1)
-    name: str = Field(default="")
-    version: str = Field(default="0.0.0")
-    description: str = Field(default="")
-    enabled: bool = Field(default=True)
-    default_render: str = Field(default="table")
-    render_modes: list[str] = Field(default_factory=lambda: ["table"])
+    name: str = Field(..., min_length=1)
+    version: str = Field(..., min_length=1)
+    description: str = Field(..., min_length=1)
+    enabled: bool = Field(...)
+    default_render: str = Field(..., min_length=1)
+    render_modes: list[str] = Field(..., min_length=1)
 
 
 class SkillRegistry:
@@ -86,8 +86,8 @@ class SkillRegistry:
                 name=cfg.name or skill.name,
                 version=cfg.version or skill.version,
                 description=cfg.description or skill.description,
-                default_render=cfg.default_render or "table",
-                render_modes=cfg.render_modes or ["table"],
+                default_render=cfg.default_render,
+                render_modes=cfg.render_modes,
             )
             logger.info("已注册技能: %s (%s)", cfg.skill_id, cfg.name)
 

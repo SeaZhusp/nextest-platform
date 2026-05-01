@@ -81,7 +81,7 @@ def build_test_case_gen_llm_messages(
     max_rows = max(0, max_rounds) * 2
     tail = paired[-max_rows:] if len(paired) > max_rows else paired
 
-    out: list[dict[str, Any]] = s[{"role": "system", "content": sp}]
+    out: list[dict[str, Any]] = [{"role": "system", "content": sp}]
     for m in tail:
         if m.role == "user":
             out.append(

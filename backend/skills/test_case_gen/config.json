@@ -1,0 +1,10 @@
+{
+  "skill_id": "test_case_gen",
+  "name": "测试用例生成",
+  "version": "1.0.0",
+  "description": "根据自然语言需求生成结构化测试用例",
+  "enabled": true,
+  "token_stream_enabled": true,
+  "default_render": "table",
+  "render_modes": ["table"]
+}
