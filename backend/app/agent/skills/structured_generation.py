@@ -115,11 +115,8 @@ def parse_items(
     raw: str,
     *,
     item_model: type[TItem],
-    min_items: int,
 ) -> list[TItem]:
     arr = extract_json_array(raw)
-    if len(arr) < int(min_items):
-        raise ValueError(f"数量不足 {min_items} 条（当前 {len(arr)}）")
     out: list[TItem] = []
     for i, item in enumerate(arr):
         if not isinstance(item, dict):
@@ -134,12 +131,11 @@ async def generate_structured_items(
     llm_config: LlmInvokeConfig,
     messages: list[dict[str, Any]],
     item_model: type[TItem],
-    min_items: int,
     error_message: str,
 ) -> tuple[list[TItem], str]:
     content = await chat_completion_content(messages, config=llm_config)
     try:
-        items = parse_items(content, item_model=item_model, min_items=min_items)
+        items = parse_items(content, item_model=item_model)
         return items, content
     except Exception as e:
         logger.warning("LLM 输出解析失败: %s", e)

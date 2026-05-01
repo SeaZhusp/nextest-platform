@@ -30,7 +30,7 @@ const routes = [
         path: 'agent',
         name: 'agent',
         component: () => import('@/views/agent/index.vue'),
-        meta: { title: '测试智能体', icon: 'RobotOutlined', showInMenu: true }
+        meta: { title: '测试助手', icon: 'RobotOutlined', showInMenu: true }
       },
       {
         path: 'agent-executions',

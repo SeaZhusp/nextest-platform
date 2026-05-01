@@ -186,14 +186,6 @@ async def iter_conversation_chat_sse(
                 prior_messages=prior,
                 current_user_text=user_text,
             )
-            # If skill config provides prompt_template, override system prompt in multi-turn messages.
-            try:
-                if skill_cfg.prompt_template:
-                    sp = render_prompt(skill_cfg.prompt_template, vars=default_prompt_vars())
-                    if llm_messages and isinstance(llm_messages, list) and llm_messages[0].get("role") == "system":
-                        llm_messages[0]["content"] = sp
-            except Exception:
-                pass
 
             chunks: list[str] = []
             try:
@@ -231,7 +223,6 @@ async def iter_conversation_chat_sse(
                 cases = parse_items(
                     full,
                     item_model=TestCaseItem,
-                    min_items=int(default_prompt_vars().min_cases),
                 )
             except Exception as e:
                 logger.warning("流式结束后解析 JSON 失败: %s", e)

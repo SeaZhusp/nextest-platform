@@ -72,24 +72,16 @@ def build_test_case_gen_llm_messages(
     prior_messages: list[ConversationMessage],
     current_user_text: str,
     max_rounds: int,
-    system_prompt: str | None = None,
 ) -> list[dict[str, Any]]:
     """
     取最近 max_rounds 轮（每轮 user+assistant 各一条 DB 行），再追加本轮 user。
     """
-    if system_prompt is not None:
-        sp = system_prompt
-    else:
-        cfg = load_skill_config("test_case_gen")
-        if cfg.prompt_template:
-            sp = render_prompt(cfg.prompt_template, vars=default_prompt_vars())
-        else:
-            sp = get_system_prompt_for_test_case_gen()
+    sp = get_system_prompt_for_test_case_gen()
     paired = complete_pairs_only(prior_messages)
     max_rows = max(0, max_rounds) * 2
     tail = paired[-max_rows:] if len(paired) > max_rows else paired
 
-    out: list[dict[str, Any]] = [{"role": "system", "content": sp}]
+    out: list[dict[str, Any]] = s[{"role": "system", "content": sp}]
     for m in tail:
         if m.role == "user":
             out.append(

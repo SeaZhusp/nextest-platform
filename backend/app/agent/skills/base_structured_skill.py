@@ -29,9 +29,6 @@ class BaseStructuredSkill(BaseSkill, ABC, Generic[TItem]):
     @abstractmethod
     def item_model(self) -> type[TItem]: ...
 
-    def min_items(self) -> int:
-        return int(default_prompt_vars().min_cases)
-
     def prompt_vars(self) -> PromptVars:
         return default_prompt_vars()
 
@@ -81,7 +78,6 @@ class BaseStructuredSkill(BaseSkill, ABC, Generic[TItem]):
             llm_config=ctx.llm_config,
             messages=messages,
             item_model=self.item_model,
-            min_items=self.min_items(),
             error_message=self.error_message(),
         )
         return SkillRunResult(test_cases=items, llm_raw_output=raw)

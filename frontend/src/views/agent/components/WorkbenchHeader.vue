@@ -40,7 +40,7 @@ const sessionText = computed(() => {
     <div class="agent-page__head-left">
       <span class="agent-page__head-title">
         <RobotOutlined />
-        <span>测试智能体</span>
+        <span>测试助手</span>
       </span>
       <span class="agent-page__head-session" :title="sessionId || undefined"> 会话：{{ sessionText }} </span>
     </div>

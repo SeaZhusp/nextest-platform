@@ -38,8 +38,6 @@ class Settings(BaseSettings):
     agent_max_user_text_chars: int = 5000
     # 会话记忆：进入 LLM 的最近对话轮数（阶段一 2.2.4 F1.12，一轮 = user + assistant）
     agent_context_max_rounds: int = 6
-    # 模型返回 JSON 数组时允许的最少条数（默认 1；若需与路线图 F1.7 对齐可改为 3）
-    agent_min_generated_test_cases: int = Field(default=1, ge=1, le=100)
     # 轻量计划执行策略
     agent_max_plan_steps: int = Field(default=8, ge=1, le=100)
     agent_max_tool_calls: int = Field(default=4, ge=1, le=100)
