@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -10,17 +11,24 @@ def _default_skills_dir() -> Path:
 
 
 class Settings(BaseSettings):
+    # App
     app_name: str = "NexTest Platform API"
     environment: str = "dev"
     debug: bool = True
     api_prefix: str = "/api"
+
+    # Auth / Token
     jwt_secret: str = "change-me"
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_days: int = 1
     jwt_refresh_token_expire_days: int = 7
     access_token_expire_minutes: int = 60
+
+    # Web
     cors_origins: list[str] = ["*"]
     trusted_hosts: list[str] = ["*"]
+
+    # Database
     database_url: str = (
         "mysql+asyncmy://root:123456@127.0.0.1:3306/nextest"
         "?charset=utf8mb4"
@@ -39,7 +47,7 @@ class Settings(BaseSettings):
     agent_step_timeout_seconds_test_case_gen: float = Field(default=60.0, gt=0.0, le=600.0)
     agent_step_retry_times: int = Field(default=1, ge=0, le=5)
     agent_total_timeout_seconds: float = Field(default=90.0, gt=0.0, le=1800.0)
-    agent_policy_overrides_json: dict = Field(
+    agent_policy_overrides_json: dict[str, Any] = Field(
         default_factory=dict,
         description="JSON overrides for execution policy by skill/role/member_level.",
     )
@@ -47,10 +55,7 @@ class Settings(BaseSettings):
     # 技能包目录（阶段一 2.2.2）；可通过环境变量 SKILLS_DIR 覆盖绝对路径
     skills_dir: Path = Field(default_factory=_default_skills_dir)
 
-    # LLM 超时（智能体实际调用使用用户保存的模型配置；以下为遗留字段，可供脚本等使用）
-    llm_api_base: str = "https://api.deepseek.com/v1"
-    llm_api_key: str = ""
-    llm_model: str = "deepseek-chat"
+    # LLM（底层 client 超时）
     llm_timeout_seconds: float = 120.0
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
