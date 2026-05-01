@@ -243,3 +243,22 @@ class AgentSessionRenameRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     title: str = Field(..., min_length=1, max_length=200, description="新标题")
+
+
+class AgentSessionLatestEditedOutputRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    edited_payload: dict[str, Any] = Field(
+        default_factory=dict,
+        description="当前会话最后一条助手消息的编辑版载荷",
+    )
+    edited_revision: int = Field(default=0, ge=0, description="客户端 revision（乐观锁）")
+
+
+class AgentSessionLatestEditedOutputData(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    session_id: str
+    message_id: int
+    edited_revision: int
+    edited_payload: dict[str, Any] = Field(default_factory=dict)

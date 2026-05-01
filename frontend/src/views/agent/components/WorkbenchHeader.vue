@@ -152,4 +152,3 @@ const sessionText = computed(() => {
   background: #e6f4ff;
 }
 </style>
-

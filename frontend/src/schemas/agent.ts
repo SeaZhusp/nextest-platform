@@ -144,6 +144,18 @@ export interface AgentSessionRenameRequest {
   title: string
 }
 
+export interface AgentSessionLatestEditedOutputRequest {
+  edited_payload: Record<string, unknown>
+  edited_revision: number
+}
+
+export interface AgentSessionLatestEditedOutputData {
+  session_id: string
+  message_id: number
+  edited_revision: number
+  edited_payload?: Record<string, unknown>
+}
+
 const MAX_TEXT = 5000
 
 /** 将纯文本转为单段 parts（一期推荐写法） */

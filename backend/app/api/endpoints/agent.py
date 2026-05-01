@@ -9,7 +9,12 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agent.memory_service import get_execution_summary_for_user, list_session_messages_for_user
+from app.agent.memory_service import (
+    get_execution_summary_for_user,
+    list_session_messages_for_user,
+    patch_latest_assistant_edited_output_for_user,
+    restore_latest_assistant_raw_output_for_user,
+)
 from app.agent.orchestrator import process_agent_chat
 from app.agent.stream import iter_conversation_chat_sse
 from app.api.deps.auth import CurrentUser, get_current_user
@@ -24,6 +29,8 @@ from app.schemas.agent import (
     AgentSessionRenameRequest,
     AgentSessionSummaryOut,
     AgentExecutionSummaryOut,
+    AgentSessionLatestEditedOutputData,
+    AgentSessionLatestEditedOutputRequest,
 )
 from app.schemas.common import ApiResponse
 from app.services.conversation_service import list_my_conversations, rename_conversation
@@ -142,4 +149,42 @@ async def get_execution_summary(
 ) -> ApiResponse[AgentExecutionSummaryOut]:
     uid = _parse_user_id(user)
     data = await get_execution_summary_for_user(db, user_id=uid, conversation_uuid=session_id)
+    return ApiResponse(data=data)
+
+
+@router.patch(
+    "/sessions/{session_id}/messages/latest-edited-output",
+    response_model=ApiResponse[AgentSessionLatestEditedOutputData],
+)
+async def patch_latest_edited_output(
+    session_id: UUID,
+    body: AgentSessionLatestEditedOutputRequest,
+    user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[AgentSessionLatestEditedOutputData]:
+    uid = _parse_user_id(user)
+    data = await patch_latest_assistant_edited_output_for_user(
+        db,
+        user_id=uid,
+        conversation_uuid=session_id,
+        body=body,
+    )
+    return ApiResponse(data=data)
+
+
+@router.patch(
+    "/sessions/{session_id}/messages/latest-edited-output/restore-raw",
+    response_model=ApiResponse[AgentSessionLatestEditedOutputData],
+)
+async def restore_latest_raw_output(
+    session_id: UUID,
+    user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[AgentSessionLatestEditedOutputData]:
+    uid = _parse_user_id(user)
+    data = await restore_latest_assistant_raw_output_for_user(
+        db,
+        user_id=uid,
+        conversation_uuid=session_id,
+    )
     return ApiResponse(data=data)

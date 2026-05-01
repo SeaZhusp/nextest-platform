@@ -2,7 +2,12 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import { getAgentSessionMessages, postAgentChatStream } from '@/api/agent'
+import {
+  getAgentSessionMessages,
+  patchAgentSessionLatestEditedOutput,
+  patchAgentSessionRestoreLatestRawOutput,
+  postAgentChatStream
+} from '@/api/agent'
 import { listUserLlmProfiles } from '@/api/userLlmProfiles'
 import type { AgentStreamDonePayload } from '@/schemas/agent'
 import type { SkillMetaOut } from '@/schemas/skill'
@@ -14,10 +19,10 @@ import {
 } from '@/schemas/agent'
 import type { TestCaseItem } from '@/schemas/testcase'
 import type { UserLlmProfileOut } from '@/schemas/userLlmProfile'
-import AgentOutputPanel from './components/AgentOutputPanel.vue'
+import OutputPanel from './components/OutputPanel.vue'
 import AgentChatPanel from './components/chat-panel/index.vue'
-import AgentWorkbenchHeader from './components/AgentWorkbenchHeader.vue'
-import type { AgentChatMessage, AgentOutputTabKey } from './types'
+import WorkbenchHeader from './components/WorkbenchHeader.vue'
+import type { AgentChatMessage, AgentOutputTabKey, DocumentModel, MindmapNode } from './types'
 
 const route = useRoute()
 
@@ -50,6 +55,7 @@ const inputText = ref('')
 const sessionId = ref<string | null>(null)
 const sending = ref(false)
 const outputTab = ref<AgentOutputTabKey>('table')
+const canRestoreRaw = ref(false)
 
 const llmProfiles = ref<UserLlmProfileOut[]>([])
 const profilesLoading = ref(false)
@@ -63,7 +69,8 @@ const tableColumns = [
   { title: '前置条件', dataIndex: 'preconditions', key: 'preconditions', ellipsis: true },
   { title: '步骤', dataIndex: 'steps', key: 'steps', ellipsis: true },
   { title: '预期', dataIndex: 'expected', key: 'expected', ellipsis: true },
-  { title: '优先级', dataIndex: 'priority', key: 'priority', width: 80 }
+  { title: '优先级', dataIndex: 'priority', key: 'priority', width: 80 },
+  { title: '操作', dataIndex: 'actions', key: 'actions', width: 64 }
 ]
 
 function rowsFromTestCases(items: TestCaseItem[]) {
@@ -79,25 +86,125 @@ function rowsFromTestCases(items: TestCaseItem[]) {
   }))
 }
 
-const mockTestCases = ref<
-  {
-    key: string
-    case_no: string
-    module: string
-    title: string
-    preconditions: string
-    steps: string
-    expected: string
-    priority: string
-  }[]
->([])
+function buildMarkdownFromRows(rows: DocumentModel['tableRows']): string {
+  if (!rows.length) {
+    return '# 测试用例报告\n\n暂无用例。'
+  }
+  const lines = ['# 测试用例报告', '', '| 编号 | 模块 | 标题 | 优先级 |', '| --- | --- | --- | --- |']
+  for (const row of rows) {
+    lines.push(`| ${row.case_no} | ${row.module} | ${row.title} | ${row.priority} |`)
+  }
+  return lines.join('\n')
+}
 
-const editorJsonText = ref('[]')
+function buildMindmapFromRows(rows: DocumentModel['tableRows']): MindmapNode[] {
+  const map = new Map<string, MindmapNode>()
+  for (const row of rows) {
+    const group = row.module || '未分组'
+    if (!map.has(group)) {
+      map.set(group, { key: `module_${group}`, title: group, children: [] })
+    }
+    map.get(group)!.children!.push({
+      key: `case_${row.key}`,
+      title: `${row.case_no} ${row.title}`.trim(),
+      children: []
+    })
+  }
+  return [...map.values()]
+}
 
-const markdownReport = ref(`# 测试用例报告
+function buildRowsFromMindmap(
+  nodes: MindmapNode[],
+  previousRows: DocumentModel['tableRows']
+): DocumentModel['tableRows'] {
+  const prevByCaseNo = new Map(previousRows.map((r) => [r.case_no, r]))
+  const rows: DocumentModel['tableRows'] = []
+  let fallbackIndex = 1
+  for (const moduleNode of nodes) {
+    const moduleName = moduleNode.title.trim() || '未分组'
+    const children = Array.isArray(moduleNode.children) ? moduleNode.children : []
+    for (const child of children) {
+      const label = (child.title || '').trim()
+      if (!label) continue
+      const m = label.match(/^(\S+)\s+(.+)$/)
+      const caseNo = (m?.[1] || `TC-${fallbackIndex++}`).trim()
+      const title = (m?.[2] || label).trim()
+      const prev = prevByCaseNo.get(caseNo)
+      rows.push({
+        key: prev?.key || `row_${child.key}`,
+        case_no: caseNo,
+        module: moduleName,
+        title,
+        preconditions: prev?.preconditions || '',
+        steps: prev?.steps || '',
+        expected: prev?.expected || '',
+        priority: prev?.priority || 'P2'
+      })
+    }
+  }
+  return rows
+}
 
-在右侧对话中输入需求并发送后，将在此展示 Markdown 报告（可后续接入导出）。
-`)
+function normalizeDocumentPayload(payload: unknown): DocumentModel {
+  const p = payload && typeof payload === 'object' ? (payload as Partial<DocumentModel>) : {}
+  const rows = Array.isArray(p.tableRows) ? (p.tableRows as DocumentModel['tableRows']) : []
+  const markdown = typeof p.markdown === 'string' ? p.markdown : buildMarkdownFromRows(rows)
+  const mindmap = Array.isArray(p.mindmap) ? (p.mindmap as MindmapNode[]) : buildMindmapFromRows(rows)
+  const sync = p.sync ?? {
+    revision: 0,
+    lastEditedBy: 'system',
+    lastEditedAt: Date.now()
+  }
+  return { tableRows: rows, markdown, mindmap, sync }
+}
+
+const panelDocument = ref<DocumentModel>({
+  tableRows: [],
+  markdown: `# 测试用例报告
+
+在右侧对话中输入需求并发送后，将在此展示 Markdown 报告（可后续接入导出）。`,
+  mindmap: [],
+  sync: {
+    revision: 0,
+    lastEditedBy: 'system',
+    lastEditedAt: Date.now()
+  }
+})
+
+let syncGuard = false
+
+watch(
+  () => panelDocument.value.tableRows,
+  (rows) => {
+    if (syncGuard) return
+    if (panelDocument.value.sync.lastEditedBy !== 'table') return
+    syncGuard = true
+    panelDocument.value.mindmap = buildMindmapFromRows(rows)
+    panelDocument.value.markdown = buildMarkdownFromRows(rows)
+    panelDocument.value.sync.revision += 1
+    panelDocument.value.sync.lastEditedBy = 'system'
+    panelDocument.value.sync.lastEditedAt = Date.now()
+    syncGuard = false
+  },
+  { deep: true }
+)
+
+watch(
+  () => panelDocument.value.mindmap,
+  (mindmap) => {
+    if (syncGuard) return
+    if (panelDocument.value.sync.lastEditedBy !== 'mindmap') return
+    syncGuard = true
+    const rows = buildRowsFromMindmap(mindmap, panelDocument.value.tableRows)
+    panelDocument.value.tableRows = rows
+    panelDocument.value.markdown = buildMarkdownFromRows(rows)
+    panelDocument.value.sync.revision += 1
+    panelDocument.value.sync.lastEditedBy = 'system'
+    panelDocument.value.sync.lastEditedAt = Date.now()
+    syncGuard = false
+  },
+  { deep: true }
+)
 
 async function loadLlmProfiles() {
   profilesLoading.value = true
@@ -167,7 +274,7 @@ async function handleSend() {
 
   sending.value = true
   inputText.value = ''
-  editorJsonText.value = ''
+  panelDocument.value.markdown = ''
   let streamBuf = ''
 
   try {
@@ -182,15 +289,23 @@ async function handleSend() {
       {
         onToken: (text) => {
           streamBuf += text
-          editorJsonText.value = streamBuf
-          outputTab.value = 'editor'
+          panelDocument.value.markdown = streamBuf
+          panelDocument.value.sync.revision += 1
+          panelDocument.value.sync.lastEditedBy = 'markdown'
+          panelDocument.value.sync.lastEditedAt = Date.now()
+          outputTab.value = 'table'
         },
         onDone: (data) => {
           sessionId.value = data.session_id
           if (data.test_cases?.length) {
             const rows = rowsFromTestCases(data.test_cases)
-            mockTestCases.value = rows
-            editorJsonText.value = JSON.stringify(rows, null, 2)
+            panelDocument.value.tableRows = rows
+            panelDocument.value.markdown = buildMarkdownFromRows(rows)
+            panelDocument.value.mindmap = buildMindmapFromRows(rows)
+            panelDocument.value.sync.revision += 1
+            panelDocument.value.sync.lastEditedBy = 'system'
+            panelDocument.value.sync.lastEditedAt = Date.now()
+            canRestoreRaw.value = true
             outputTab.value = 'table'
           }
           mockMessages.value[assistIdx].content = buildStreamSummary(data)
@@ -217,15 +332,42 @@ async function handleSend() {
   }
 }
 
-function handleSave() {
-  console.info('save', editorJsonText.value)
+async function handleSave() {
+  if (!sessionId.value) {
+    message.warning('当前还没有可保存的会话')
+    return
+  }
+  try {
+    const res = await patchAgentSessionLatestEditedOutput(sessionId.value, {
+      edited_payload: panelDocument.value,
+      edited_revision: panelDocument.value.sync.revision
+    })
+    const rev = res.data?.edited_revision
+    if (typeof rev === 'number' && Number.isFinite(rev)) {
+      panelDocument.value.sync.revision = rev
+      panelDocument.value.sync.lastEditedBy = outputTab.value
+      panelDocument.value.sync.lastEditedAt = Date.now()
+    }
+    message.success('已保存，后续生成将基于当前编辑版')
+  } catch {
+    /* request 拦截器已提示 */
+  }
 }
 
 function resetSessionForSkillSwitch() {
   sessionId.value = null
+  canRestoreRaw.value = false
   mockMessages.value = []
-  mockTestCases.value = []
-  editorJsonText.value = '[]'
+  panelDocument.value = {
+    tableRows: [],
+    markdown: '# 测试用例报告\n\n暂无数据。',
+    mindmap: [],
+    sync: {
+      revision: 0,
+      lastEditedBy: 'system',
+      lastEditedAt: Date.now()
+    }
+  }
   outputTab.value = 'table'
 }
 
@@ -311,10 +453,23 @@ function assistantBriefFromApiMessage(content: Record<string, unknown>): string 
   return text
 }
 
-function tryHydrateTestCasesFromHistory(messages: AgentHistoryMessageOut[]): void {
+function tryHydrateDocumentFromHistory(messages: AgentHistoryMessageOut[]): void {
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i]
     if (m.role !== 'assistant') continue
+    const edited = m.content_json?.edited_payload
+    const rawPayload = m.content_json?.raw_payload
+    canRestoreRaw.value = !!(rawPayload && typeof rawPayload === 'object')
+    if (edited && typeof edited === 'object') {
+      panelDocument.value = normalizeDocumentPayload(edited)
+      outputTab.value = 'table'
+      return
+    }
+    if (rawPayload && typeof rawPayload === 'object') {
+      panelDocument.value = normalizeDocumentPayload(rawPayload)
+      outputTab.value = 'table'
+      return
+    }
     const raw = m.content_json?.text
     const text = typeof raw === 'string' ? raw : ''
     if (!text.trim()) continue
@@ -325,8 +480,13 @@ function tryHydrateTestCasesFromHistory(messages: AgentHistoryMessageOut[]): voi
         parsed.length &&
         parsed.every((x) => x && typeof x === 'object')
       ) {
-        mockTestCases.value = rowsFromTestCases(parsed as TestCaseItem[])
-        editorJsonText.value = JSON.stringify(mockTestCases.value, null, 2)
+        const rows = rowsFromTestCases(parsed as TestCaseItem[])
+        panelDocument.value.tableRows = rows
+        panelDocument.value.markdown = buildMarkdownFromRows(rows)
+        panelDocument.value.mindmap = buildMindmapFromRows(rows)
+        panelDocument.value.sync.revision = 0
+        panelDocument.value.sync.lastEditedBy = 'system'
+        panelDocument.value.sync.lastEditedAt = Date.now()
         outputTab.value = 'table'
         return
       }
@@ -334,9 +494,33 @@ function tryHydrateTestCasesFromHistory(messages: AgentHistoryMessageOut[]): voi
       /* 非 JSON 或结构不符 */
     }
   }
-  mockTestCases.value = []
-  editorJsonText.value = '[]'
-  outputTab.value = 'editor'
+  panelDocument.value.tableRows = []
+  panelDocument.value.markdown = '# 测试用例报告\n\n暂无数据。'
+  panelDocument.value.mindmap = []
+  canRestoreRaw.value = false
+  outputTab.value = 'table'
+}
+
+async function handleRestoreRaw() {
+  if (!sessionId.value) {
+    message.warning('当前还没有可恢复的会话')
+    return
+  }
+  try {
+    const res = await patchAgentSessionRestoreLatestRawOutput(sessionId.value)
+    if (res.data?.edited_payload && typeof res.data.edited_payload === 'object') {
+      panelDocument.value = normalizeDocumentPayload(res.data.edited_payload)
+    }
+    if (typeof res.data?.edited_revision === 'number') {
+      panelDocument.value.sync.revision = res.data.edited_revision
+      panelDocument.value.sync.lastEditedBy = 'system'
+      panelDocument.value.sync.lastEditedAt = Date.now()
+    }
+    outputTab.value = 'table'
+    message.success('已恢复为原始版')
+  } catch {
+    /* request 拦截器已提示 */
+  }
 }
 
 async function onSelectHistorySession(payload: { sessionId: string; skillId: string }) {
@@ -358,7 +542,7 @@ async function onSelectHistorySession(payload: { sessionId: string; skillId: str
           ? userTextFromApiMessage(m.content_json as Record<string, unknown>)
           : assistantBriefFromApiMessage(m.content_json as Record<string, unknown>)
     }))
-    tryHydrateTestCasesFromHistory(data.messages)
+    tryHydrateDocumentFromHistory(data.messages)
     message.success('已载入历史会话')
   } catch {
     /* request 拦截器已提示 */
@@ -585,7 +769,7 @@ onUnmounted(() => {
 
 <template>
   <div class="agent-page" :class="{ 'agent-page--immersive': immersiveMode }">
-    <AgentWorkbenchHeader
+    <WorkbenchHeader
       :session-id="sessionId"
       :layout-mode="layoutMode"
       :immersive-mode="immersiveMode"
@@ -604,14 +788,14 @@ onUnmounted(() => {
       }"
     >
       <div v-show="layoutMode !== 'chat-only'" class="agent-body__output">
-        <AgentOutputPanel
-          v-model:editor-json="editorJsonText"
+        <OutputPanel
+          v-model:document="panelDocument"
           v-model:output-tab="outputTab"
           :session-id="sessionId"
+          :can-restore-raw="canRestoreRaw"
           :table-columns="tableColumns"
-          :rows="mockTestCases"
-          :markdown-report="markdownReport"
           @save="handleSave"
+          @restore-raw="handleRestoreRaw"
         />
       </div>
       <div

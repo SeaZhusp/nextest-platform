@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.context import build_test_case_gen_llm_messages
 from app.core.config import settings
-from app.core.exceptions import NotFoundException
+from app.core.exceptions import NotFoundException, ValidationException
 from app.models.conversation import Conversation, ConversationMessage
 from app.repositories.conversation_repository import conversation_repository
 from app.schemas.agent import (
@@ -19,6 +19,8 @@ from app.schemas.agent import (
     AgentExecutionSummaryOut,
     AgentHistoryMessageOut,
     AgentSessionMessagesData,
+    AgentSessionLatestEditedOutputData,
+    AgentSessionLatestEditedOutputRequest,
     TextPart,
 )
 
@@ -119,6 +121,12 @@ async def save_assistant_message(
     execution: dict | None = None,
 ) -> None:
     content_json: dict = {"text": text}
+    try:
+        parsed_cases = json.loads(text)
+        if isinstance(parsed_cases, list):
+            content_json["raw_payload"] = _build_document_payload_from_testcases(parsed_cases)
+    except Exception:
+        content_json["raw_payload"] = _build_document_payload_from_testcases([])
     if execution is not None:
         content_json["execution"] = execution
     await conversation_repository.create_message(
@@ -135,6 +143,146 @@ def assistant_persist_text_from_result(*, llm_raw_output: str | None, test_cases
     if llm_raw_output is not None and llm_raw_output.strip():
         return llm_raw_output
     return json.dumps(test_cases_dump, ensure_ascii=False)
+
+
+def _build_document_payload_from_testcases(test_cases_dump: list[dict]) -> dict:
+    rows: list[dict] = []
+    for i, item in enumerate(test_cases_dump):
+        row = item if isinstance(item, dict) else {}
+        rows.append(
+            {
+                "key": str(row.get("id") or row.get("case_no") or i),
+                "case_no": str(row.get("case_no") or ""),
+                "module": str(row.get("module") or ""),
+                "title": str(row.get("title") or ""),
+                "preconditions": str(row.get("preconditions") or ""),
+                "steps": str(row.get("steps") or ""),
+                "expected": str(row.get("expected") or ""),
+                "priority": str(row.get("priority") or "P2"),
+            }
+        )
+    markdown_lines = ["# 测试用例报告", "", "| 编号 | 模块 | 标题 | 优先级 |", "| --- | --- | --- | --- |"]
+    for r in rows:
+        markdown_lines.append(
+            f"| {r['case_no']} | {r['module']} | {r['title']} | {r['priority']} |"
+        )
+    return {
+        "tableRows": rows,
+        "markdown": "\n".join(markdown_lines),
+        "mindmap": [],
+        "sync": {
+            "revision": 0,
+            "lastEditedBy": "system",
+            "lastEditedAt": 0,
+        },
+    }
+
+
+def assistant_baseline_content_from_content_json(content: dict[str, object]) -> str:
+    edited_payload = content.get("edited_payload")
+    if isinstance(edited_payload, dict):
+        md = edited_payload.get("markdown")
+        if isinstance(md, str) and md.strip():
+            return md
+        rows = edited_payload.get("tableRows")
+        if isinstance(rows, list):
+            return json.dumps(rows, ensure_ascii=False)
+
+    raw_payload = content.get("raw_payload")
+    if isinstance(raw_payload, dict):
+        md = raw_payload.get("markdown")
+        if isinstance(md, str) and md.strip():
+            return md
+        rows = raw_payload.get("tableRows")
+        if isinstance(rows, list):
+            return json.dumps(rows, ensure_ascii=False)
+
+    text = content.get("text")
+    return text if isinstance(text, str) else json.dumps(content, ensure_ascii=False)
+
+
+async def patch_latest_assistant_edited_output_for_user(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    conversation_uuid: UUID,
+    body: AgentSessionLatestEditedOutputRequest,
+) -> AgentSessionLatestEditedOutputData:
+    row = await conversation_repository.get_by_uuid_for_user(
+        db,
+        conversation_uuid=str(conversation_uuid),
+        user_id=user_id,
+    )
+    if row is None:
+        raise NotFoundException("会话不存在或无权访问")
+
+    msg = await conversation_repository.get_latest_assistant_message(db, conversation_id=row.id)
+    if msg is None:
+        raise NotFoundException("当前会话暂无助手消息可编辑")
+
+    current = dict(msg.content_json) if isinstance(msg.content_json, dict) else {}
+    current_revision = int(current.get("edited_revision") or 0)
+    if body.edited_revision < current_revision:
+        raise ValidationException("编辑版本落后，请刷新后重试")
+
+    next_revision = current_revision + 1
+    current["edited_payload"] = body.edited_payload
+    current["edited_revision"] = next_revision
+    current["edited_meta"] = {
+        "source_view": "manual",
+    }
+    msg.content_json = current
+    await db.flush()
+    await conversation_repository.touch_updated_at(db, row.id)
+    await db.commit()
+    return AgentSessionLatestEditedOutputData(
+        session_id=str(conversation_uuid),
+        message_id=int(msg.id),
+        edited_revision=next_revision,
+        edited_payload=body.edited_payload,
+    )
+
+
+async def restore_latest_assistant_raw_output_for_user(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    conversation_uuid: UUID,
+) -> AgentSessionLatestEditedOutputData:
+    row = await conversation_repository.get_by_uuid_for_user(
+        db,
+        conversation_uuid=str(conversation_uuid),
+        user_id=user_id,
+    )
+    if row is None:
+        raise NotFoundException("会话不存在或无权访问")
+
+    msg = await conversation_repository.get_latest_assistant_message(db, conversation_id=row.id)
+    if msg is None:
+        raise NotFoundException("当前会话暂无助手消息可恢复")
+
+    current = dict(msg.content_json) if isinstance(msg.content_json, dict) else {}
+    raw_payload = current.get("raw_payload")
+    if not isinstance(raw_payload, dict):
+        raise ValidationException("当前消息没有可恢复的原始版")
+
+    current_revision = int(current.get("edited_revision") or 0)
+    next_revision = current_revision + 1
+    current["edited_payload"] = raw_payload
+    current["edited_revision"] = next_revision
+    current["edited_meta"] = {
+        "source_view": "restore_raw",
+    }
+    msg.content_json = current
+    await db.flush()
+    await conversation_repository.touch_updated_at(db, row.id)
+    await db.commit()
+    return AgentSessionLatestEditedOutputData(
+        session_id=str(conversation_uuid),
+        message_id=int(msg.id),
+        edited_revision=next_revision,
+        edited_payload=raw_payload,
+    )
 
 
 async def list_session_messages_for_user(

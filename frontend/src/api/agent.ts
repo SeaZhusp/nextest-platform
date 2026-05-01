@@ -2,6 +2,8 @@ import type {
   AgentChatAckData,
   AgentChatRequest,
   AgentExecutionSummaryOut,
+  AgentSessionLatestEditedOutputData,
+  AgentSessionLatestEditedOutputRequest,
   AgentSessionListData,
   AgentSessionMessagesData,
   AgentSessionRenameRequest,
@@ -35,6 +37,24 @@ export function getAgentExecutionSummary(sessionId: string) {
 /** 重命名会话 */
 export function patchAgentSessionTitle(sessionId: string, body: AgentSessionRenameRequest) {
   return api.patch<AgentSessionSummaryOut>(`/agent/sessions/${sessionId}`, body)
+}
+
+/** 保存会话最后一条 assistant 编辑版结果 */
+export function patchAgentSessionLatestEditedOutput(
+  sessionId: string,
+  body: AgentSessionLatestEditedOutputRequest
+) {
+  return api.patch<AgentSessionLatestEditedOutputData>(
+    `/agent/sessions/${sessionId}/messages/latest-edited-output`,
+    body
+  )
+}
+
+/** 一键恢复会话最后一条消息为 raw 版本 */
+export function patchAgentSessionRestoreLatestRawOutput(sessionId: string) {
+  return api.patch<AgentSessionLatestEditedOutputData>(
+    `/agent/sessions/${sessionId}/messages/latest-edited-output/restore-raw`
+  )
 }
 
 type StreamHandlers = {

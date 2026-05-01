@@ -120,5 +120,41 @@ class ConversationRepository(BaseRepository[Conversation]):
         await db.refresh(msg)
         return msg
 
+    async def get_message_by_id_for_conversation(
+        self,
+        db: AsyncSession,
+        *,
+        conversation_id: int,
+        message_id: int,
+    ) -> ConversationMessage | None:
+        stmt = (
+            select(ConversationMessage)
+            .where(
+                ConversationMessage.deleted_at.is_(None),
+                ConversationMessage.conversation_id == conversation_id,
+                ConversationMessage.id == message_id,
+            )
+            .limit(1)
+        )
+        return (await db.execute(stmt)).scalar_one_or_none()
+
+    async def get_latest_assistant_message(
+        self,
+        db: AsyncSession,
+        *,
+        conversation_id: int,
+    ) -> ConversationMessage | None:
+        stmt = (
+            select(ConversationMessage)
+            .where(
+                ConversationMessage.deleted_at.is_(None),
+                ConversationMessage.conversation_id == conversation_id,
+                ConversationMessage.role == "assistant",
+            )
+            .order_by(ConversationMessage.id.desc())
+            .limit(1)
+        )
+        return (await db.execute(stmt)).scalar_one_or_none()
+
 
 conversation_repository = ConversationRepository()

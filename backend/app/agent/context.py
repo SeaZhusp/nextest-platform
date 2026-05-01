@@ -41,6 +41,24 @@ def user_display_text_from_content_json(content: dict[str, Any]) -> str:
 
 
 def assistant_text_from_content_json(content: dict[str, Any]) -> str:
+    edited_payload = content.get("edited_payload")
+    if isinstance(edited_payload, dict):
+        md = edited_payload.get("markdown")
+        if isinstance(md, str) and md.strip():
+            return md
+        rows = edited_payload.get("tableRows")
+        if isinstance(rows, list):
+            return json.dumps(rows, ensure_ascii=False)
+
+    raw_payload = content.get("raw_payload")
+    if isinstance(raw_payload, dict):
+        md = raw_payload.get("markdown")
+        if isinstance(md, str) and md.strip():
+            return md
+        rows = raw_payload.get("tableRows")
+        if isinstance(rows, list):
+            return json.dumps(rows, ensure_ascii=False)
+
     t = content.get("text")
     if isinstance(t, str):
         return t
