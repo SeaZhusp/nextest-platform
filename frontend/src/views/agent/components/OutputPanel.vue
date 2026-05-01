@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import {
   FileMarkdownOutlined,
   HistoryOutlined,
+  DownloadOutlined,
   PlusOutlined,
   SaveOutlined,
   UnorderedListOutlined
@@ -24,6 +25,7 @@ const outputTab = defineModel<AgentOutputTabKey>('outputTab', { default: 'table'
 const emit = defineEmits<{
   save: []
   restoreRaw: []
+  exportExcel: []
 }>()
 
 const markdownPreview = ref(false)
@@ -57,6 +59,10 @@ function onRestoreRaw() {
   emit('restoreRaw')
 }
 
+function onExportExcel() {
+  emit('exportExcel')
+}
+
 function onAddRow() {
   const idx = documentModel.value.tableRows.length + 1
   documentModel.value.tableRows.push({
@@ -86,6 +92,12 @@ function onAddRow() {
               <PlusOutlined />
             </template>
             新增行
+          </a-button>
+          <a-button size="small" @click="onExportExcel" v-if="outputTab === 'table'">
+            <template #icon>
+              <DownloadOutlined />
+            </template>
+            导出 Excel
           </a-button>
           <a-button size="small" :disabled="!props.canRestoreRaw" @click="onRestoreRaw">
             <template #icon>

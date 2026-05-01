@@ -2,7 +2,7 @@
 智能体 HTTP 入口：同步 JSON（/chat）与 SSE 流式（/chat/stream）（2.2.2 / 2.2.3 / 2.2.4）。
 """
 
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
@@ -34,6 +34,7 @@ from app.schemas.agent import (
 )
 from app.schemas.common import ApiResponse
 from app.services.conversation_service import list_my_conversations, rename_conversation
+from app.services.agent_service import export_agent_session_excel_for_user
 from app.services.llm_resolve_service import resolve_user_llm_config
 
 router = APIRouter(prefix="/agent", tags=["agent"])
@@ -188,3 +189,27 @@ async def restore_latest_raw_output(
         conversation_uuid=session_id,
     )
     return ApiResponse(data=data)
+
+
+@router.get("/sessions/{session_id}/export")
+async def export_session_excel(
+    session_id: UUID,
+    source: Literal["edited", "raw"] = "edited",
+    user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    uid = _parse_user_id(user)
+    content, file_name = await export_agent_session_excel_for_user(
+        db,
+        user_id=uid,
+        conversation_uuid=session_id,
+        source=source,
+    )
+    return StreamingResponse(
+        iter([content]),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{file_name}"',
+            "Cache-Control": "no-store",
+        },
+    )

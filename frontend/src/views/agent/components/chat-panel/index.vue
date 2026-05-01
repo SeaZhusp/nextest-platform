@@ -23,13 +23,14 @@ const temperature = defineModel<number>('temperature', { default: 0.7 })
 const emit = defineEmits<{
   send: []
   'skill-change': [skillId: string]
+  'show-output': []
 }>()
 </script>
 
 <template>
   <section class="agent-chat">
     <Welcome v-if="messages.length === 0" />
-    <MessageList :messages="messages" />
+    <MessageList :messages="messages" @show-output="emit('show-output')" />
     <Composer
       v-model:input-text="inputText"
       v-model:selected-profile-id="selectedProfileId"

@@ -7,6 +7,10 @@ const props = defineProps<{
   messages: AgentChatMessage[]
 }>()
 
+const emit = defineEmits<{
+  'show-output': []
+}>()
+
 const messageListRef = ref<HTMLElement | null>(null)
 const streamBoxRefs = ref<Record<string, HTMLElement>>({})
 
@@ -80,6 +84,15 @@ watch(
           <CheckCircleTwoTone v-else-if="m.currentStep.status === 'succeeded'" two-tone-color="#52c41a" />
           <CloseCircleTwoTone v-else-if="m.currentStep.status === 'failed'" two-tone-color="#ff4d4f" />
           <span class="agent-msg__step-text">当前步骤：{{ m.currentStep.label }}</span>
+          <a-button
+            v-if="!m.streaming && m.content.includes('结果请查看输出区')"
+            type="link"
+            size="small"
+            class="agent-msg__view-output-btn"
+            @click="emit('show-output')"
+          >
+            查看结果
+          </a-button>
         </div>
         <div v-if="m.role === 'assistant' && m.planSteps?.length" class="agent-msg__plan">
           <div class="agent-msg__plan-title">执行步骤</div>
@@ -132,6 +145,12 @@ watch(
 .agent-msg--user {
   flex-direction: row-reverse;
 
+  .agent-msg__body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
   .agent-msg__bubble {
     background: #e6f7ff;
     border: 1px solid #91d5ff;
@@ -148,6 +167,9 @@ watch(
 }
 
 .agent-msg__bubble {
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
   padding: 10px 12px;
   border-radius: 8px;
   background: #fff;
@@ -165,6 +187,14 @@ watch(
   align-items: center;
   gap: 6px;
   color: #8c8c8c;
+  font-size: 12px;
+}
+
+.agent-msg__view-output-btn {
+  margin-left: 4px;
+  padding: 0;
+  height: auto;
+  line-height: 1;
   font-size: 12px;
 }
 

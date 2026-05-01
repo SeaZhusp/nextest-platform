@@ -59,6 +59,37 @@ export function patchAgentSessionRestoreLatestRawOutput(sessionId: string) {
   )
 }
 
+export async function getAgentSessionExportExcel(
+  sessionId: string,
+  source: 'edited' | 'raw' = 'edited'
+): Promise<{ blob: Blob; fileName: string }> {
+  const base = import.meta.env.VITE_API_BASE_URL || '/api'
+  const token = getAccessToken()
+  const qs = new URLSearchParams({ source })
+  const url = `${String(base).replace(/\/$/, '')}/agent/sessions/${encodeURIComponent(sessionId)}/export?${qs.toString()}`
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  })
+  if (!res.ok) {
+    let msg = `导出失败 (${res.status})`
+    try {
+      const j = (await res.json()) as { message?: string }
+      if (j?.message) msg = j.message
+    } catch {
+      /* ignore */
+    }
+    throw new Error(msg)
+  }
+  const blob = await res.blob()
+  const cd = res.headers.get('content-disposition') || ''
+  const match = cd.match(/filename\*?=(?:UTF-8''|")?([^\";]+)/i)
+  const fileName = match ? decodeURIComponent(match[1].replace(/"/g, '').trim()) : `testcases_${sessionId}.xlsx`
+  return { blob, fileName }
+}
+
 type StreamHandlers = {
   onToken?: (text: string) => void
   onPlan?: (plan: AgentStreamPlanPayload) => void
@@ -122,7 +153,7 @@ export async function postAgentChatStream(
     if (eventName === 'token' && typeof payload.text === 'string') {
       handlers.onToken?.(payload.text)
     } else if (eventName === 'plan') {
-      const plan = payload as AgentStreamPlanPayload
+      const plan = payload as unknown as AgentStreamPlanPayload
       if (Array.isArray(plan.steps)) {
         handlers.onPlan?.({
           steps: plan.steps
@@ -131,7 +162,7 @@ export async function postAgentChatStream(
         })
       }
     } else if (eventName === 'step') {
-      const step = payload as AgentStreamStepPayload
+      const step = payload as unknown as AgentStreamStepPayload
       if (typeof step.step_id === 'string' && typeof step.label === 'string' && typeof step.status === 'string') {
         handlers.onStep?.(step)
       }

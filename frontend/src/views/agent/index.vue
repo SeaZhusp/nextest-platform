@@ -3,6 +3,7 @@ import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
+  getAgentSessionExportExcel,
   getAgentSessionMessages,
   patchAgentSessionLatestEditedOutput,
   patchAgentSessionRestoreLatestRawOutput,
@@ -424,6 +425,27 @@ async function handleSave() {
     message.success('已保存，后续生成将基于当前编辑版')
   } catch {
     /* request 拦截器已提示 */
+  }
+}
+
+async function handleExportExcel() {
+  if (!sessionId.value) {
+    message.warning('当前还没有可导出的会话')
+    return
+  }
+  try {
+    const { blob, fileName } = await getAgentSessionExportExcel(sessionId.value, 'edited')
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName || `testcases_${sessionId.value}.xlsx`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : '导出失败')
   }
 }
 
@@ -899,6 +921,7 @@ onUnmounted(() => {
           :render-modes="renderModes"
           :table-columns="tableColumns"
           @save="handleSave"
+          @export-excel="handleExportExcel"
           @restore-raw="handleRestoreRaw"
         />
       </div>
@@ -932,6 +955,7 @@ onUnmounted(() => {
           :profiles-loading="profilesLoading"
           @send="handleSend"
           @skill-change="handleSkillChange"
+          @show-output="setLayoutMode('split')"
         />
       </div>
     </div>
