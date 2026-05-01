@@ -11,7 +11,8 @@ import logging
 from typing import Any
 
 from app.models.conversation import ConversationMessage
-from app.services.test_case_gen_llm import get_system_prompt_for_test_case_gen
+from app.agent.skills.config import load_skill_config
+from app.agent.skills.structured_generation import default_prompt_vars, render_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,14 @@ def build_test_case_gen_llm_messages(
     """
     取最近 max_rounds 轮（每轮 user+assistant 各一条 DB 行），再追加本轮 user。
     """
-    sp = system_prompt if system_prompt is not None else get_system_prompt_for_test_case_gen()
+    if system_prompt is not None:
+        sp = system_prompt
+    else:
+        cfg = load_skill_config("test_case_gen")
+        if cfg.prompt_template:
+            sp = render_prompt(cfg.prompt_template, vars=default_prompt_vars())
+        else:
+            sp = get_system_prompt_for_test_case_gen()
     paired = complete_pairs_only(prior_messages)
     max_rows = max(0, max_rounds) * 2
     tail = paired[-max_rows:] if len(paired) > max_rows else paired

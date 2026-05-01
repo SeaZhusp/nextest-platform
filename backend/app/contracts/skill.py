@@ -44,9 +44,17 @@ class SkillRunResult(BaseModel):
 class BaseSkill(ABC):
     """Skills live under backend/skills/<skill_id>/skill.py and expose build_skill()."""
 
+    _skill_id: str | None = None
+
     @property
-    @abstractmethod
-    def skill_id(self) -> str: ...
+    def skill_id(self) -> str:
+        if isinstance(self._skill_id, str) and self._skill_id.strip():
+            return self._skill_id.strip()
+        return ""
+
+    def set_skill_id(self, skill_id: str) -> None:
+        """Called by registry after loading from config/dir."""
+        self._skill_id = (skill_id or "").strip() or None
 
     @property
     def name(self) -> str:

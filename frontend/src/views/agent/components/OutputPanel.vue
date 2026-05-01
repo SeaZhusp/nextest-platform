@@ -1,16 +1,19 @@
 <script setup lang="ts">
-import { watch } from 'vue'
+import { ref, watch } from 'vue'
 import {
+  FileMarkdownOutlined,
   HistoryOutlined,
   SaveOutlined,
   UnorderedListOutlined
 } from '@ant-design/icons-vue'
 import type { AgentOutputTabKey, DocumentModel } from '../types'
+import MarkdownEditor from './output/MarkdownEditor.vue'
 import TableEditor from './output/TableEditor.vue'
 
 const props = defineProps<{
   sessionId: string | null
   canRestoreRaw: boolean
+  renderModes: AgentOutputTabKey[]
   tableColumns: { title: string; dataIndex: string; key: string; width?: number; ellipsis?: boolean }[]
 }>()
 
@@ -22,11 +25,18 @@ const emit = defineEmits<{
   restoreRaw: []
 }>()
 
+const markdownPreview = ref(false)
+const hasMode = (m: AgentOutputTabKey) => props.renderModes.includes(m)
+
 watch(
   () => outputTab.value,
   (tab) => {
-    if (tab !== 'table') {
-      outputTab.value = 'table'
+    if (!hasMode(tab)) {
+      outputTab.value = hasMode('table') ? 'table' : props.renderModes[0] || 'table'
+      return
+    }
+    if (tab === 'markdown') {
+      markdownPreview.value = false
     }
   },
   { immediate: true }
@@ -51,6 +61,9 @@ function onRestoreRaw() {
   <section class="agent-output">
     <div class="agent-output__toolbar">
       <div class="agent-output__actions">
+        <a-button size="small" @click="markdownPreview = !markdownPreview" v-if="outputTab === 'markdown'">
+          {{ markdownPreview ? '编辑' : '预览' }}
+        </a-button>
         <a-button size="small" :disabled="!props.canRestoreRaw" @click="onRestoreRaw">
           <template #icon>
             <HistoryOutlined />
@@ -67,7 +80,7 @@ function onRestoreRaw() {
     </div>
 
     <a-tabs v-model:activeKey="outputTab" class="agent-output__tabs" type="card">
-      <a-tab-pane key="table">
+      <a-tab-pane key="table" v-if="hasMode('table')">
         <template #tab>
           <span><UnorderedListOutlined /> 表格</span>
         </template>
@@ -76,6 +89,18 @@ function onRestoreRaw() {
             v-model:rows="documentModel.tableRows"
             :columns="tableColumns"
             @edited="markEdited('table')"
+          />
+        </div>
+      </a-tab-pane>
+      <a-tab-pane key="markdown" v-if="hasMode('markdown')">
+        <template #tab>
+          <span><FileMarkdownOutlined /> Markdown</span>
+        </template>
+        <div class="agent-output__pane agent-output__pane--markdown">
+          <MarkdownEditor
+            v-model:markdown="documentModel.markdown"
+            :preview="markdownPreview"
+            @edited="markEdited('markdown')"
           />
         </div>
       </a-tab-pane>

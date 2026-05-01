@@ -4,4 +4,6 @@ export interface SkillMetaOut {
   name: string
   version: string
   description?: string
+  default_render?: 'table' | 'markdown' | 'mindmap'
+  render_modes?: Array<'table' | 'markdown' | 'mindmap'>
 }

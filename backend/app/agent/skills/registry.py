@@ -23,6 +23,8 @@ class SkillPackageConfig(BaseModel):
     version: str = Field(default="0.0.0")
     description: str = Field(default="")
     enabled: bool = Field(default=True)
+    default_render: str = Field(default="table")
+    render_modes: list[str] = Field(default_factory=lambda: ["table"])
 
 
 class SkillRegistry:
@@ -73,25 +75,21 @@ class SkillRegistry:
                 logger.exception("加载技能失败 skill_id=%s: %s", cfg.skill_id, e)
                 continue
 
-            if skill.skill_id != cfg.skill_id:
-                logger.error(
-                    "技能实例 skill_id 与配置不一致: expected=%s got=%s",
-                    cfg.skill_id,
-                    skill.skill_id,
-                )
-                continue
-            if skill.skill_id in self._skills:
-                logger.error("检测到重复 skill_id，跳过后者: %s", skill.skill_id)
+            skill.set_skill_id(cfg.skill_id)
+            if cfg.skill_id in self._skills:
+                logger.error("检测到重复 skill_id，跳过后者: %s", cfg.skill_id)
                 continue
 
-            self._skills[skill.skill_id] = skill
-            self._meta[skill.skill_id] = SkillMetaOut(
-                skill_id=skill.skill_id,
+            self._skills[cfg.skill_id] = skill
+            self._meta[cfg.skill_id] = SkillMetaOut(
+                skill_id=cfg.skill_id,
                 name=cfg.name or skill.name,
                 version=cfg.version or skill.version,
                 description=cfg.description or skill.description,
+                default_render=cfg.default_render or "table",
+                render_modes=cfg.render_modes or ["table"],
             )
-            logger.info("已注册技能: %s (%s)", skill.skill_id, cfg.name)
+            logger.info("已注册技能: %s (%s)", cfg.skill_id, cfg.name)
 
     def get(self, skill_id: str) -> BaseSkill | None:
         return self._skills.get(skill_id)

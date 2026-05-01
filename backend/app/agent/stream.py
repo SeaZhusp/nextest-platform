@@ -28,11 +28,15 @@ from app.schemas.agent import AgentChatRequest
 from app.schemas.llm_invoke import LlmInvokeConfig
 from app.contracts.skill import SkillContext
 from app.agent.skills.executor import execute_skill
-from app.services.test_case_gen_llm import (
-    parse_test_cases_from_llm_text,
-    stream_llm_text_deltas,
-    template_test_cases,
+from app.agent.skills.structured_generation import (
+    build_messages,
+    default_prompt_vars,
+    parse_items,
+    render_prompt,
+    stream_llm_text,
 )
+from app.agent.skills.config import load_skill_config
+from app.schemas.testcase import TestCaseItem
 
 logger = logging.getLogger(__name__)
 
@@ -117,47 +121,11 @@ async def iter_conversation_chat_sse(
                 return
 
             if llm_config is None:
-                started = time.perf_counter()
-                cases = template_test_cases()
-                dump = [c.model_dump() for c in cases]
-                asst = assistant_persist_text_from_result(
-                    llm_raw_output=None,
-                    test_cases_dump=dump,
-                )
-                exec_result = ExecutionResult(
-                    status="succeeded",
-                    traces=[
-                        ExecutionTrace(
-                            step_id="call_skill",
-                            status="succeeded",
-                            duration_ms=int((time.perf_counter() - started) * 1000),
-                            output_summary=f"generated={len(dump)}",
-                        ),
-                        ExecutionTrace(
-                            step_id="respond",
-                            status="succeeded",
-                            duration_ms=0,
-                            output_summary="sse_done",
-                        ),
-                    ],
-                    outputs={"test_case_count": len(dump)},
-                )
-                await save_assistant_message(
-                    db,
-                    conversation_id=resolved.row.id,
-                    text=asst,
-                    execution=exec_result.model_dump(),
-                )
-                await db.commit()
                 yield _sse(
-                    "done",
+                    "error",
                     {
-                        "session_id": sid,
-                        "skill_id": skill_id,
-                        "parts": parts_dump,
-                        "test_cases": dump,
-                        "used_template": True,
-                        "execution": {"status": exec_result.status, "traces": _trace_dump(exec_result)},
+                        "message": "未配置大模型，无法执行该技能",
+                        "details": {"reason": "llm_config is null"},
                     },
                 )
                 return
@@ -167,14 +135,22 @@ async def iter_conversation_chat_sse(
                 prior_messages=prior,
                 current_user_text=user_text,
             )
+            # If skill config provides prompt_template, override system prompt in multi-turn messages.
+            try:
+                cfg = load_skill_config("test_case_gen")
+                if cfg.prompt_template:
+                    sp = render_prompt(cfg.prompt_template, vars=default_prompt_vars())
+                    if llm_messages and isinstance(llm_messages, list) and llm_messages[0].get("role") == "system":
+                        llm_messages[0]["content"] = sp
+            except Exception:
+                pass
 
             chunks: list[str] = []
             try:
                 async with asyncio.timeout(policy.step_timeout_seconds):
-                    async for delta in stream_llm_text_deltas(
-                        user_text,
-                        llm_config,
-                        chat_messages=llm_messages,
+                    async for delta in stream_llm_text(
+                        llm_config=llm_config,
+                        messages=llm_messages,
                     ):
                         chunks.append(delta)
                         yield _sse("token", {"text": delta})
@@ -190,7 +166,11 @@ async def iter_conversation_chat_sse(
 
             full = "".join(chunks)
             try:
-                cases = parse_test_cases_from_llm_text(full)
+                cases = parse_items(
+                    full,
+                    item_model=TestCaseItem,
+                    min_items=int(default_prompt_vars().min_cases),
+                )
             except Exception as e:
                 logger.warning("流式结束后解析 JSON 失败: %s", e)
                 yield _sse(

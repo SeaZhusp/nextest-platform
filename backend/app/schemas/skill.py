@@ -12,3 +12,5 @@ class SkillMetaOut(BaseModel):
     name: str
     version: str
     description: str = ""
+    default_render: str = Field(default="table", description="默认渲染模式")
+    render_modes: list[str] = Field(default_factory=lambda: ["table"], description="允许的渲染模式列表")

@@ -37,8 +37,10 @@ async function loadRegisteredSkills() {
   try {
     const res = await listSkills()
     registeredSkills.value = res.data ?? []
+    syncRenderConfigForSkill(selectedSkillId.value)
   } catch {
     registeredSkills.value = []
+    syncRenderConfigForSkill(selectedSkillId.value)
   } finally {
     skillsLoading.value = false
   }
@@ -47,6 +49,7 @@ async function loadRegisteredSkills() {
 function applySkillId(next: string) {
   const sid = next.trim() || 'test_case_gen'
   selectedSkillId.value = sid
+  syncRenderConfigForSkill(sid)
 }
 
 const mockMessages = ref<AgentChatMessage[]>([])
@@ -56,6 +59,30 @@ const sessionId = ref<string | null>(null)
 const sending = ref(false)
 const outputTab = ref<AgentOutputTabKey>('table')
 const canRestoreRaw = ref(false)
+const renderModes = ref<AgentOutputTabKey[]>(['table'])
+const defaultRender = ref<AgentOutputTabKey>('table')
+
+function normalizeRenderModes(modes: unknown): AgentOutputTabKey[] {
+  if (!Array.isArray(modes)) return ['table']
+  const out = modes.filter(
+    (m): m is AgentOutputTabKey => m === 'table' || m === 'markdown' || m === 'mindmap'
+  )
+  return out.length ? out : ['table']
+}
+
+function syncRenderConfigForSkill(skillId: string): void {
+  const meta = registeredSkills.value.find((s) => s.skill_id === skillId)
+  const modes = normalizeRenderModes(meta?.render_modes)
+  renderModes.value = modes
+  const d = meta?.default_render
+  defaultRender.value =
+    d === 'table' || d === 'markdown' || d === 'mindmap'
+      ? (d as AgentOutputTabKey)
+      : modes[0] || 'table'
+  if (!renderModes.value.includes(outputTab.value)) {
+    outputTab.value = defaultRender.value
+  }
+}
 
 const llmProfiles = ref<UserLlmProfileOut[]>([])
 const profilesLoading = ref(false)
@@ -293,7 +320,7 @@ async function handleSend() {
           panelDocument.value.sync.revision += 1
           panelDocument.value.sync.lastEditedBy = 'markdown'
           panelDocument.value.sync.lastEditedAt = Date.now()
-          outputTab.value = 'table'
+          outputTab.value = renderModes.value.includes('markdown') ? 'markdown' : defaultRender.value
         },
         onDone: (data) => {
           sessionId.value = data.session_id
@@ -306,7 +333,7 @@ async function handleSend() {
             panelDocument.value.sync.lastEditedBy = 'system'
             panelDocument.value.sync.lastEditedAt = Date.now()
             canRestoreRaw.value = true
-            outputTab.value = 'table'
+            outputTab.value = defaultRender.value
           }
           mockMessages.value[assistIdx].content = buildStreamSummary(data)
         },
@@ -368,7 +395,7 @@ function resetSessionForSkillSwitch() {
       lastEditedAt: Date.now()
     }
   }
-  outputTab.value = 'table'
+  outputTab.value = defaultRender.value
 }
 
 async function handleNewSession() {
@@ -462,12 +489,12 @@ function tryHydrateDocumentFromHistory(messages: AgentHistoryMessageOut[]): void
     canRestoreRaw.value = !!(rawPayload && typeof rawPayload === 'object')
     if (edited && typeof edited === 'object') {
       panelDocument.value = normalizeDocumentPayload(edited)
-      outputTab.value = 'table'
+      outputTab.value = defaultRender.value
       return
     }
     if (rawPayload && typeof rawPayload === 'object') {
       panelDocument.value = normalizeDocumentPayload(rawPayload)
-      outputTab.value = 'table'
+      outputTab.value = defaultRender.value
       return
     }
     const raw = m.content_json?.text
@@ -487,7 +514,7 @@ function tryHydrateDocumentFromHistory(messages: AgentHistoryMessageOut[]): void
         panelDocument.value.sync.revision = 0
         panelDocument.value.sync.lastEditedBy = 'system'
         panelDocument.value.sync.lastEditedAt = Date.now()
-        outputTab.value = 'table'
+        outputTab.value = defaultRender.value
         return
       }
     } catch {
@@ -498,7 +525,7 @@ function tryHydrateDocumentFromHistory(messages: AgentHistoryMessageOut[]): void
   panelDocument.value.markdown = '# 测试用例报告\n\n暂无数据。'
   panelDocument.value.mindmap = []
   canRestoreRaw.value = false
-  outputTab.value = 'table'
+  outputTab.value = defaultRender.value
 }
 
 async function handleRestoreRaw() {
@@ -516,7 +543,7 @@ async function handleRestoreRaw() {
       panelDocument.value.sync.lastEditedBy = 'system'
       panelDocument.value.sync.lastEditedAt = Date.now()
     }
-    outputTab.value = 'table'
+    outputTab.value = defaultRender.value
     message.success('已恢复为原始版')
   } catch {
     /* request 拦截器已提示 */
@@ -793,6 +820,7 @@ onUnmounted(() => {
           v-model:output-tab="outputTab"
           :session-id="sessionId"
           :can-restore-raw="canRestoreRaw"
+          :render-modes="renderModes"
           :table-columns="tableColumns"
           @save="handleSave"
           @restore-raw="handleRestoreRaw"
