@@ -12,10 +12,7 @@
 
 ## 用例生成演示
 
-- 点击动图查看视频：
-[`imgs/testcase_gen.mp4`](imgs/testcase_gen.mp4)
-
-[![用例生成演示](imgs/testcase_gen.gif)](imgs/testcase_gen.mp4)
+[![用例生成演示](imgs/testcase_gen.gif)](imgs/testcase_gen.gif)
 
 ## 功能一览（当前实现）
 
