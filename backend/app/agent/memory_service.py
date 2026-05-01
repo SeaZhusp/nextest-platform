@@ -119,6 +119,7 @@ async def save_assistant_message(
     conversation_id: int,
     text: str,
     execution: dict | None = None,
+    plan_steps: list[dict] | None = None,
 ) -> None:
     content_json: dict = {"text": text}
     try:
@@ -129,6 +130,8 @@ async def save_assistant_message(
         content_json["raw_payload"] = _build_document_payload_from_testcases([])
     if execution is not None:
         content_json["execution"] = execution
+    if plan_steps is not None:
+        content_json["plan_steps"] = plan_steps
     await conversation_repository.create_message(
         db,
         conversation_id=conversation_id,

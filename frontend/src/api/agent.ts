@@ -23,22 +23,27 @@ export function postAgentChat(body: AgentChatRequest) {
 
 /** 历史会话分页列表 */
 export function getAgentSessions(params: { page?: number; size?: number }) {
-  return api.get<AgentSessionListData>('/agent/sessions', { params })
+  return api.get<AgentSessionListData>('/agent/conversations', { params })
 }
 
 /** 某会话消息（含 title / skill_id） */
 export function getAgentSessionMessages(sessionId: string) {
-  return api.get<AgentSessionMessagesData>(`/agent/sessions/${sessionId}/messages`)
+  return api.get<AgentSessionMessagesData>(`/agent/conversations/${sessionId}/messages`)
 }
 
 /** 某会话 execution 汇总（看板聚合） */
 export function getAgentExecutionSummary(sessionId: string) {
-  return api.get<AgentExecutionSummaryOut>(`/agent/sessions/${sessionId}/execution-summary`)
+  return api.get<AgentExecutionSummaryOut>(`/agent/conversations/${sessionId}/execution-summary`)
 }
 
 /** 重命名会话 */
 export function patchAgentSessionTitle(sessionId: string, body: AgentSessionRenameRequest) {
-  return api.patch<AgentSessionSummaryOut>(`/agent/sessions/${sessionId}`, body)
+  return api.patch<AgentSessionSummaryOut>(`/agent/conversations/${sessionId}`, body)
+}
+
+/** 删除会话 */
+export function deleteAgentSession(sessionId: string) {
+  return api.delete<{ ok: boolean }>(`/agent/conversations/${sessionId}`)
 }
 
 /** 保存会话最后一条 assistant 编辑版结果 */
@@ -47,7 +52,7 @@ export function patchAgentSessionLatestEditedOutput(
   body: AgentSessionLatestEditedOutputRequest
 ) {
   return api.patch<AgentSessionLatestEditedOutputData>(
-    `/agent/sessions/${sessionId}/messages/latest-edited-output`,
+    `/agent/conversations/${sessionId}/messages/latest-edited-output`,
     body
   )
 }
@@ -55,7 +60,7 @@ export function patchAgentSessionLatestEditedOutput(
 /** 一键恢复会话最后一条消息为 raw 版本 */
 export function patchAgentSessionRestoreLatestRawOutput(sessionId: string) {
   return api.patch<AgentSessionLatestEditedOutputData>(
-    `/agent/sessions/${sessionId}/messages/latest-edited-output/restore-raw`
+    `/agent/conversations/${sessionId}/messages/latest-edited-output/restore-raw`
   )
 }
 
@@ -66,7 +71,7 @@ export async function getAgentSessionExportExcel(
   const base = import.meta.env.VITE_API_BASE_URL || '/api'
   const token = getAccessToken()
   const qs = new URLSearchParams({ source })
-  const url = `${String(base).replace(/\/$/, '')}/agent/sessions/${encodeURIComponent(sessionId)}/export?${qs.toString()}`
+  const url = `${String(base).replace(/\/$/, '')}/agent/conversations/${encodeURIComponent(sessionId)}/export?${qs.toString()}`
   const res = await fetch(url, {
     method: 'GET',
     headers: {
@@ -103,13 +108,15 @@ type StreamHandlers = {
  */
 export async function postAgentChatStream(
   body: AgentChatRequest,
-  handlers: StreamHandlers
+  handlers: StreamHandlers,
+  options?: { signal?: AbortSignal }
 ): Promise<void> {
   const base = import.meta.env.VITE_API_BASE_URL || '/api'
   const url = `${String(base).replace(/\/$/, '')}/agent/chat/stream`
   const token = getAccessToken()
   const res = await fetch(url, {
     method: 'POST',
+    signal: options?.signal,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {})

@@ -22,6 +22,7 @@ const temperature = defineModel<number>('temperature', { default: 0.7 })
 
 const emit = defineEmits<{
   send: []
+  stop: []
   'skill-change': [skillId: string]
   'show-output': []
 }>()
@@ -42,6 +43,7 @@ const emit = defineEmits<{
       :profiles="profiles"
       :profiles-loading="profilesLoading"
       @send="emit('send')"
+      @stop="emit('stop')"
       @skill-change="emit('skill-change', $event)"
     />
   </section>

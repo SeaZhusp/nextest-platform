@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.conversation import Conversation, ConversationMessage
@@ -155,6 +155,14 @@ class ConversationRepository(BaseRepository[Conversation]):
             .limit(1)
         )
         return (await db.execute(stmt)).scalar_one_or_none()
+
+    async def hard_delete_with_messages(self, db: AsyncSession, *, conversation_id: int) -> None:
+        # 先删子表，避免 ORM 在删除父记录时尝试将 FK 置空导致 NOT NULL 冲突
+        await db.execute(
+            delete(ConversationMessage).where(ConversationMessage.conversation_id == conversation_id)
+        )
+        await db.execute(delete(Conversation).where(Conversation.id == conversation_id))
+        await db.flush()
 
 
 conversation_repository = ConversationRepository()

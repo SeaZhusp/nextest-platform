@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { SendOutlined } from '@ant-design/icons-vue'
+import { SendOutlined, StopOutlined } from '@ant-design/icons-vue'
 import SvgIcon from '@/components/SvgIcon.vue'
 import SkillSelect from './SkillSelect.vue'
 import ModelSelect from './ModelSelect.vue'
@@ -24,6 +24,7 @@ const temperature = defineModel<number>('temperature', { default: 0.7 })
 
 const emit = defineEmits<{
   send: []
+  stop: []
   'skill-pick': [skillId: string]
   'model-pick': [profileId: number]
 }>()
@@ -113,17 +114,17 @@ function onModelPicked(id: number) {
 
     <div class="composer-card__spacer" />
 
-    <a-tooltip :title="sendDisabled ? '请先完成模型配置并选择模型' : '发送'">
+    <a-tooltip :title="sending ? '停止生成' : sendDisabled ? '请先完成模型配置并选择模型' : '发送'">
       <a-button
         type="primary"
         shape="circle"
         class="composer-card__send"
-        :loading="sending"
-        :disabled="sendDisabled"
-        @click="emit('send')"
+        :disabled="sending ? false : sendDisabled"
+        @click="sending ? emit('stop') : emit('send')"
       >
         <template #icon>
-          <SendOutlined />
+          <StopOutlined v-if="sending" />
+          <SendOutlined v-else />
         </template>
       </a-button>
     </a-tooltip>

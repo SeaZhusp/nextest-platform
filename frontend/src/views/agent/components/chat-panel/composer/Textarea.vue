@@ -1,6 +1,10 @@
 <script setup lang="ts">
 const model = defineModel<string>({ default: '' })
 
+defineProps<{
+  disabled?: boolean
+}>()
+
 const emit = defineEmits<{
   send: []
 }>()
@@ -12,6 +16,7 @@ const emit = defineEmits<{
     :bordered="false"
     :rows="4"
     :auto-size="{ minRows: 3, maxRows: 8 }"
+    :disabled="disabled"
     placeholder="描述您的需求，例如：帮我生成一个登录功能的测试用例…"
     class="composer-textarea"
     @pressEnter.exact.prevent="emit('send')"

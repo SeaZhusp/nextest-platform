@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import {
+  DeleteOutlined,
   EditOutlined,
   HistoryOutlined,
   MessageOutlined,
   ReloadOutlined
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
-import { getAgentSessions, patchAgentSessionTitle } from '@/api/agent'
+import { deleteAgentSession, getAgentSessions, patchAgentSessionTitle } from '@/api/agent'
 import type { AgentSessionSummaryOut } from '@/schemas/agent'
 
 const open = defineModel<boolean>('open', { default: false })
@@ -28,6 +29,7 @@ const renameVisible = ref(false)
 const renameSubmitting = ref(false)
 const renameInput = ref('')
 const renameTarget = ref<AgentSessionSummaryOut | null>(null)
+const deletingId = ref<string | null>(null)
 
 const hasMore = computed(() => total.value > 0 && items.value.length < total.value)
 
@@ -139,6 +141,24 @@ function openRename(record: AgentSessionSummaryOut, e: MouseEvent) {
   renameVisible.value = true
 }
 
+async function handleDelete(record: AgentSessionSummaryOut, e: MouseEvent) {
+  e.stopPropagation()
+  if (deletingId.value) return
+  deletingId.value = record.session_id
+  try {
+    await deleteAgentSession(record.session_id)
+    message.success('已删除会话')
+    items.value = items.value.filter((x) => x.session_id !== record.session_id)
+    total.value = Math.max(0, total.value - 1)
+    await nextTick()
+    void fillUntilScrollableOrDone()
+  } catch {
+    /* 拦截器已提示 */
+  } finally {
+    deletingId.value = null
+  }
+}
+
 async function handleRenameOk() {
   const t = renameInput.value.trim()
   if (!t) {
@@ -227,15 +247,34 @@ function displayTitle(record: AgentSessionSummaryOut) {
                       {{ formatRelativeTime(row.updated_at) }}
                     </div>
                   </div>
-                  <a-button
-                    type="text"
-                    size="small"
-                    class="session-history__rename"
-                    title="重命名"
-                    @click="openRename(row, $event)"
-                  >
-                    <EditOutlined />
-                  </a-button>
+                  <div class="session-history__actions">
+                    <a-button
+                      type="text"
+                      size="small"
+                      class="session-history__rename"
+                      title="重命名"
+                      @click="openRename(row, $event)"
+                    >
+                      <EditOutlined />
+                    </a-button>
+                    <a-popconfirm
+                      title="确认删除该会话？"
+                      ok-text="删除"
+                      cancel-text="取消"
+                      @confirm="handleDelete(row, $event as MouseEvent)"
+                    >
+                      <a-button
+                        type="text"
+                        size="small"
+                        class="session-history__delete"
+                        title="删除"
+                        :loading="deletingId === row.session_id"
+                        @click.stop
+                      >
+                        <DeleteOutlined />
+                      </a-button>
+                    </a-popconfirm>
+                  </div>
                 </li>
               </ul>
               <div v-if="loadingMore" class="session-history__loading-more">加载中…</div>
@@ -342,7 +381,7 @@ function displayTitle(record: AgentSessionSummaryOut) {
   &:hover {
     background: #f5f5f5;
 
-    .session-history__rename {
+    .session-history__actions {
       opacity: 1;
       pointer-events: auto;
     }
@@ -387,17 +426,27 @@ function displayTitle(record: AgentSessionSummaryOut) {
   white-space: nowrap;
 }
 
-.session-history__rename {
+.session-history__actions {
   flex-shrink: 0;
   align-self: center;
   opacity: 0;
   pointer-events: none;
-  color: #595959;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   transition: opacity 0.12s ease;
+}
 
+.session-history__rename,
+.session-history__delete {
+  color: #595959;
   &:hover {
     color: #1677ff;
   }
+}
+
+.session-history__delete:hover {
+  color: #ff4d4f;
 }
 
 .session-history__empty {

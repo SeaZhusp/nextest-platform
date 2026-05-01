@@ -37,7 +37,7 @@ class Conversation(ModelBase):
 
     messages: Mapped[list["ConversationMessage"]] = relationship(
         "ConversationMessage",
-        back_populates="session",
+        back_populates="conversation",
     )
 
 
@@ -64,4 +64,4 @@ class ConversationMessage(ModelBase):
         comment="用户：{parts:[...]}；助手：{text: 模型原文或等价 JSON 文本}",
     )
 
-    session: Mapped["Conversation"] = relationship("Conversation", back_populates="messages")
+    conversation: Mapped["Conversation"] = relationship("Conversation", back_populates="messages")

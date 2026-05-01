@@ -59,3 +59,18 @@ async def rename_conversation(
         skill_id=row.skill_id,
         updated_at=row.updated_at.isoformat() if row.updated_at else "",
     )
+
+
+async def delete_conversation(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    conversation_uuid: UUID,
+) -> None:
+    row = await conversation_repository.get_by_uuid_for_user(
+        db, conversation_uuid=str(conversation_uuid), user_id=user_id
+    )
+    if row is None:
+        raise NotFoundException("会话不存在或无权访问")
+    await conversation_repository.hard_delete_with_messages(db, conversation_id=int(row.id))
+    await db.commit()

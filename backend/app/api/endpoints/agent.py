@@ -5,7 +5,7 @@
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,7 +33,11 @@ from app.schemas.agent import (
     AgentSessionLatestEditedOutputRequest,
 )
 from app.schemas.common import ApiResponse
-from app.services.conversation_service import list_my_conversations, rename_conversation
+from app.services.conversation_service import (
+    delete_conversation,
+    list_my_conversations,
+    rename_conversation,
+)
 from app.services.agent_service import export_agent_session_excel_for_user
 from app.services.llm_resolve_service import resolve_user_llm_config
 
@@ -70,6 +74,7 @@ async def chat(
 @router.post("/chat/stream")
 async def chat_stream(
     payload: AgentChatRequest,
+    request: Request,
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
@@ -86,7 +91,7 @@ async def chat_stream(
     )
     uid = _parse_user_id(user)
     return StreamingResponse(
-        iter_conversation_chat_sse(payload, llm_cfg, user_id=uid, user=user),
+        iter_conversation_chat_sse(payload, llm_cfg, user_id=uid, user=user, request=request),
         media_type="text/event-stream; charset=utf-8",
         headers={
             "Cache-Control": "no-cache",
@@ -96,8 +101,8 @@ async def chat_stream(
     )
 
 
-@router.get("/sessions", response_model=ApiResponse[AgentSessionListData])
-async def list_agent_sessions(
+@router.get("/conversations", response_model=ApiResponse[AgentSessionListData])
+async def list_agent_conversations(
     paging: Annotated[Paging, Depends()],
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -109,56 +114,67 @@ async def list_agent_sessions(
 
 
 @router.patch(
-    "/sessions/{session_id}",
+    "/conversations/{conversation_id}",
     response_model=ApiResponse[AgentSessionSummaryOut],
 )
-async def rename_agent_session(
-    session_id: UUID,
+async def rename_agent_conversation(
+    conversation_id: UUID,
     body: AgentSessionRenameRequest,
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ApiResponse[AgentSessionSummaryOut]:
-    """重命名会话展示标题。"""
+    """重命名对话展示标题。"""
     uid = _parse_user_id(user)
-    data = await rename_conversation(db, user_id=uid, conversation_uuid=session_id, title=body.title)
+    data = await rename_conversation(db, user_id=uid, conversation_uuid=conversation_id, title=body.title)
     return ApiResponse(data=data)
 
 
+@router.delete("/conversations/{conversation_id}", response_model=ApiResponse[dict[str, bool]])
+async def delete_agent_conversation(
+    conversation_id: UUID,
+    user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[dict[str, bool]]:
+    uid = _parse_user_id(user)
+    await delete_conversation(db, user_id=uid, conversation_uuid=conversation_id)
+    return ApiResponse(data={"ok": True})
+
+
 @router.get(
-    "/sessions/{session_id}/messages",
+    "/conversations/{conversation_id}/messages",
     response_model=ApiResponse[AgentSessionMessagesData],
 )
-async def list_session_messages(
-    session_id: UUID,
+async def list_conversation_messages(
+    conversation_id: UUID,
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ApiResponse[AgentSessionMessagesData]:
-    """查询会话消息历史（2.2.4 F1.11）。"""
+    """查询对话消息历史（2.2.4 F1.11）。"""
     uid = _parse_user_id(user)
-    data = await list_session_messages_for_user(db, user_id=uid, conversation_uuid=session_id)
+    data = await list_session_messages_for_user(db, user_id=uid, conversation_uuid=conversation_id)
     return ApiResponse(data=data)
 
 
 @router.get(
-    "/sessions/{session_id}/execution-summary",
+    "/conversations/{conversation_id}/execution-summary",
     response_model=ApiResponse[AgentExecutionSummaryOut],
 )
-async def get_execution_summary(
-    session_id: UUID,
+async def get_conversation_execution_summary(
+    conversation_id: UUID,
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ApiResponse[AgentExecutionSummaryOut]:
     uid = _parse_user_id(user)
-    data = await get_execution_summary_for_user(db, user_id=uid, conversation_uuid=session_id)
+    data = await get_execution_summary_for_user(db, user_id=uid, conversation_uuid=conversation_id)
     return ApiResponse(data=data)
 
 
 @router.patch(
-    "/sessions/{session_id}/messages/latest-edited-output",
+    "/conversations/{conversation_id}/messages/latest-edited-output",
     response_model=ApiResponse[AgentSessionLatestEditedOutputData],
 )
 async def patch_latest_edited_output(
-    session_id: UUID,
+    conversation_id: UUID,
     body: AgentSessionLatestEditedOutputRequest,
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -167,18 +183,18 @@ async def patch_latest_edited_output(
     data = await patch_latest_assistant_edited_output_for_user(
         db,
         user_id=uid,
-        conversation_uuid=session_id,
+        conversation_uuid=conversation_id,
         body=body,
     )
     return ApiResponse(data=data)
 
 
 @router.patch(
-    "/sessions/{session_id}/messages/latest-edited-output/restore-raw",
+    "/conversations/{conversation_id}/messages/latest-edited-output/restore-raw",
     response_model=ApiResponse[AgentSessionLatestEditedOutputData],
 )
 async def restore_latest_raw_output(
-    session_id: UUID,
+    conversation_id: UUID,
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ApiResponse[AgentSessionLatestEditedOutputData]:
@@ -186,14 +202,14 @@ async def restore_latest_raw_output(
     data = await restore_latest_assistant_raw_output_for_user(
         db,
         user_id=uid,
-        conversation_uuid=session_id,
+        conversation_uuid=conversation_id,
     )
     return ApiResponse(data=data)
 
 
-@router.get("/sessions/{session_id}/export")
+@router.get("/conversations/{conversation_id}/export")
 async def export_session_excel(
-    session_id: UUID,
+    conversation_id: UUID,
     source: Literal["edited", "raw"] = "edited",
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -202,7 +218,7 @@ async def export_session_excel(
     content, file_name = await export_agent_session_excel_for_user(
         db,
         user_id=uid,
-        conversation_uuid=session_id,
+        conversation_uuid=conversation_id,
         source=source,
     )
     return StreamingResponse(

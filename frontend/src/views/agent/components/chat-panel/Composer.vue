@@ -22,6 +22,7 @@ const temperature = defineModel<number>('temperature', { default: 0.7 })
 
 const emit = defineEmits<{
   send: []
+  stop: []
   'skill-change': [skillId: string]
 }>()
 
@@ -61,7 +62,6 @@ const temperatureTagText = computed(() => `温度 ${temperature.value.toFixed(1)
 
 const sendDisabled = computed(
   () =>
-    props.sending ||
     props.profilesLoading ||
     props.profiles.length === 0 ||
     selectedProfileId.value == null
@@ -83,7 +83,7 @@ function onModelPick(profileId: number) {
 <template>
   <footer class="agent-chat__composer-outer">
     <div class="composer-card">
-      <Textarea v-model="inputText" @send="onSend" />
+      <Textarea v-model="inputText" :disabled="sending" @send="onSend" />
       <div class="composer-card__divider" />
 
       <ToolRow
@@ -100,6 +100,7 @@ function onModelPick(profileId: number) {
         :sending="sending"
         :send-disabled="sendDisabled"
         @send="onSend"
+        @stop="emit('stop')"
         @skill-pick="onSkillPick"
         @model-pick="onModelPick"
       />

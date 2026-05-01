@@ -58,6 +58,7 @@ const mockMessages = ref<AgentChatMessage[]>([])
 const inputText = ref('')
 const sessionId = ref<string | null>(null)
 const sending = ref(false)
+const activeStreamAbort = ref<AbortController | null>(null)
 const outputTab = ref<AgentOutputTabKey>('table')
 const canRestoreRaw = ref(false)
 const renderModes = ref<AgentOutputTabKey[]>(['table'])
@@ -300,6 +301,8 @@ async function handleSend() {
 
   sending.value = true
   inputText.value = ''
+  const abortController = new AbortController()
+  activeStreamAbort.value = abortController
 
   try {
     await postAgentChatStream(
@@ -314,11 +317,13 @@ async function handleSend() {
         onPlan: (plan: AgentStreamPlanPayload) => {
           const msg = mockMessages.value[assistIdx]
           if (!msg) return
-          msg.planSteps = (plan.steps || []).map((s) => ({
-            stepId: s.step_id,
-            label: s.label || s.step_id,
-            status: 'pending'
-          }))
+          msg.planSteps = sortPlanSteps(
+            (plan.steps || []).map((s) => ({
+              stepId: s.step_id,
+              label: s.label || s.step_id,
+              status: 'pending'
+            }))
+          )
         },
         onToken: (text) => {
           const msg = mockMessages.value[assistIdx]
@@ -339,6 +344,7 @@ async function handleSend() {
                 status: step.status
               })
             }
+            msg.planSteps = sortPlanSteps(msg.planSteps)
           }
           msg.currentStep = {
             stepId: step.step_id,
@@ -397,13 +403,33 @@ async function handleSend() {
             }
           }
         }
-      }
+      },
+      { signal: abortController.signal }
     )
-  } catch {
-    // fetch 非 2xx 或 onError 已提示
+  } catch (e) {
+    if (e instanceof Error && e.name === 'AbortError') {
+      const last = mockMessages.value[mockMessages.value.length - 1]
+      if (last?.role === 'assistant' && last.streaming) {
+        last.content = '已停止生成'
+        last.streaming = false
+        if (last.currentStep?.status === 'running') {
+          last.currentStep = {
+            ...last.currentStep,
+            status: 'failed'
+          }
+        }
+      }
+      message.info('已停止')
+    }
   } finally {
     sending.value = false
+    activeStreamAbort.value = null
   }
+}
+
+function handleStop() {
+  if (!sending.value) return
+  activeStreamAbort.value?.abort()
 }
 
 async function handleSave() {
@@ -547,15 +573,54 @@ function assistantBriefFromApiMessage(content: Record<string, unknown>): string 
   return '执行完成，结果请查看输出区'
 }
 
+const STEP_ORDER: Record<string, number> = {
+  plan: 0,
+  call_skill: 1,
+  parse_output: 2,
+  persist: 3,
+  respond: 4
+}
+
+function sortPlanSteps(
+  steps: AgentChatMessage['planSteps']
+): NonNullable<AgentChatMessage['planSteps']> {
+  return [...(steps || [])].sort((a, b) => {
+    const ai = STEP_ORDER[a.stepId] ?? 99
+    const bi = STEP_ORDER[b.stepId] ?? 99
+    if (ai !== bi) return ai - bi
+    return a.stepId.localeCompare(b.stepId)
+  })
+}
+
+function buildPlanStepsFromContentJson(
+  content: Record<string, unknown>
+): NonNullable<AgentChatMessage['planSteps']> {
+  const raw = content.plan_steps
+  if (!Array.isArray(raw)) return []
+  return sortPlanSteps(
+    raw
+    .map((x) => (x && typeof x === 'object' ? (x as Record<string, unknown>) : null))
+    .filter((x): x is Record<string, unknown> => !!x)
+    .map((x) => ({
+      stepId: String(x.step_id || '').trim(),
+      label: String(x.label || x.step_id || '').trim(),
+      status: String(x.status || 'pending') as 'pending' | 'running' | 'succeeded' | 'failed' | 'skipped'
+    }))
+    .filter((x) => !!x.stepId)
+  )
+}
+
 function buildPlanStepsFromExecution(
   execution: AgentHistoryMessageOut['execution']
-): AgentChatMessage['planSteps'] {
+): NonNullable<AgentChatMessage['planSteps']> {
   if (!execution?.traces?.length) return []
-  return execution.traces.map((t) => ({
-    stepId: t.step_id,
-    label: t.step_id,
-    status: t.status
-  }))
+  return sortPlanSteps(
+    execution.traces.map((t) => ({
+      stepId: t.step_id,
+      label: t.step_id,
+      status: t.status
+    }))
+  )
 }
 
 function buildCurrentStepFromExecution(
@@ -655,18 +720,34 @@ async function onSelectHistorySession(payload: { sessionId: string; skillId: str
     }
     sessionId.value = data.session_id
     applySkillId((skillId || data.skill_id || 'test_case_gen').trim() || 'test_case_gen')
-    mockMessages.value = data.messages.map((m) => ({
-      id: String(m.id),
-      role: m.role,
-      content:
-        m.role === 'user'
-          ? userTextFromApiMessage(m.content_json as Record<string, unknown>)
-          : assistantBriefFromApiMessage(m.content_json as Record<string, unknown>),
-      streamContent: '',
-      streaming: false,
-      currentStep: m.role === 'assistant' ? buildCurrentStepFromExecution(m.execution) : null,
-      planSteps: m.role === 'assistant' ? buildPlanStepsFromExecution(m.execution) : []
-    }))
+    mockMessages.value = data.messages.map((m) => {
+      const contentJson = m.content_json as Record<string, unknown>
+      const planStepsFromContent = buildPlanStepsFromContentJson(contentJson)
+      const planSteps =
+        m.role === 'assistant'
+          ? planStepsFromContent.length
+            ? planStepsFromContent
+            : buildPlanStepsFromExecution(m.execution)
+          : []
+      const currentStep =
+        m.role === 'assistant'
+          ? planSteps.length
+            ? planSteps[planSteps.length - 1]
+            : buildCurrentStepFromExecution(m.execution)
+          : null
+      return {
+        id: String(m.id),
+        role: m.role,
+        content:
+          m.role === 'user'
+            ? userTextFromApiMessage(contentJson)
+            : assistantBriefFromApiMessage(contentJson),
+        streamContent: '',
+        streaming: false,
+        currentStep,
+        planSteps
+      }
+    })
     tryHydrateDocumentFromHistory(data.messages)
     message.success('已载入历史会话')
   } catch {
@@ -954,6 +1035,7 @@ onUnmounted(() => {
           :profiles="llmProfiles"
           :profiles-loading="profilesLoading"
           @send="handleSend"
+          @stop="handleStop"
           @skill-change="handleSkillChange"
           @show-output="setLayoutMode('split')"
         />

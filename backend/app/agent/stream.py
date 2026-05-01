@@ -9,6 +9,8 @@ import time
 from collections.abc import AsyncIterator
 from typing import Any
 
+from starlette.requests import Request
+
 from app.agent.executor import execute_plan_steps
 from app.agent.input_normalizer import normalize_agent_input
 from app.agent.memory_service import (
@@ -56,17 +58,38 @@ async def iter_conversation_chat_sse(
     *,
     user_id: int,
     user: CurrentUser | None = None,
+    request: Request | None = None,
 ) -> AsyncIterator[bytes]:
     current_step = ""
     step_names: dict[str, str] = {}
+    step_state_by_id: dict[str, dict[str, Any]] = {}
+    step_order: list[str] = []
 
     def step_payload(step_id: str, label: str, status: str) -> dict[str, Any]:
         nonlocal current_step
         current_step = step_id
+        if step_id not in step_state_by_id:
+            step_order.append(step_id)
+            step_state_by_id[step_id] = {"step_id": step_id, "label": label, "status": status}
+        else:
+            step_state_by_id[step_id]["label"] = label
+            step_state_by_id[step_id]["status"] = status
         return {"step_id": step_id, "label": label, "status": status}
+
+    def snapshot_plan_steps() -> list[dict[str, Any]]:
+        return [dict(step_state_by_id[sid]) for sid in step_order]
+
+    async def ensure_connected() -> None:
+        if request is None:
+            return
+        if await request.is_disconnected():
+            raise asyncio.CancelledError()
 
     normalized = normalize_agent_input(payload)
     skill_id = normalized.skill_id
+    skill_cfg = load_skill_config(skill_id)
+    skill_display_name = skill_cfg.name or skill_id
+    token_stream_enabled = bool(skill_cfg.raw.get("token_stream_enabled"))
     parts = normalized.text_parts
     parts_dump = [p.model_dump() for p in parts]
     user_text = normalized.user_text
@@ -86,16 +109,18 @@ async def iter_conversation_chat_sse(
         sid = str(resolved.conversation_uuid)
 
         try:
-            yield _sse("step", step_payload("plan", "plan", "running"))
+            await ensure_connected()
+            yield _sse("step", step_payload("plan", "规划步骤", "running"))
             steps = plan_for_chat(normalized)
             step_names = {s.step_id: (s.name or s.step_id) for s in steps}
             yield _sse("plan", {"steps": [{"step_id": s.step_id, "label": s.name or s.step_id} for s in steps]})
-            yield _sse("step", step_payload("plan", "plan", "succeeded"))
+            yield _sse("step", step_payload("plan", "规划步骤", "succeeded"))
             policy = resolve_execution_policy(skill_id, user=user)
-            if skill_id != "test_case_gen":
+            if not token_stream_enabled:
+                await ensure_connected()
                 yield _sse(
                     "step",
-                    step_payload("call_skill", step_names.get("call_skill", "call_skill"), "running"),
+                    step_payload("call_skill", f"执行技能：{skill_display_name}", "running"),
                 )
                 ctx = SkillContext(
                     user_text=user_text,
@@ -111,12 +136,15 @@ async def iter_conversation_chat_sse(
                     ctx=ctx,
                     policy=policy,
                 )
+                await ensure_connected()
                 yield _sse(
                     "step",
-                    step_payload("call_skill", step_names.get("call_skill", "call_skill"), "succeeded"),
+                    step_payload("call_skill", f"执行技能：{skill_display_name}", "succeeded"),
                 )
                 dump = [c.model_dump() for c in result.test_cases]
-                yield _sse("step", step_payload("persist", "persist", "running"))
+                yield _sse("step", step_payload("persist", "保存会话", "running"))
+                yield _sse("step", step_payload("persist", "保存会话", "succeeded"))
+                yield _sse("step", step_payload("respond", step_names.get("respond", "respond"), "succeeded"))
                 asst = assistant_persist_text_from_result(
                     llm_raw_output=result.llm_raw_output,
                     test_cases_dump=dump,
@@ -126,10 +154,10 @@ async def iter_conversation_chat_sse(
                     conversation_id=resolved.row.id,
                     text=asst,
                     execution=exec_result.model_dump(),
+                    plan_steps=snapshot_plan_steps(),
                 )
                 await db.commit()
-                yield _sse("step", step_payload("persist", "persist", "succeeded"))
-                yield _sse("step", step_payload("respond", step_names.get("respond", "respond"), "running"))
+                await ensure_connected()
                 yield _sse(
                     "done",
                     {
@@ -160,9 +188,8 @@ async def iter_conversation_chat_sse(
             )
             # If skill config provides prompt_template, override system prompt in multi-turn messages.
             try:
-                cfg = load_skill_config("test_case_gen")
-                if cfg.prompt_template:
-                    sp = render_prompt(cfg.prompt_template, vars=default_prompt_vars())
+                if skill_cfg.prompt_template:
+                    sp = render_prompt(skill_cfg.prompt_template, vars=default_prompt_vars())
                     if llm_messages and isinstance(llm_messages, list) and llm_messages[0].get("role") == "system":
                         llm_messages[0]["content"] = sp
             except Exception:
@@ -170,15 +197,17 @@ async def iter_conversation_chat_sse(
 
             chunks: list[str] = []
             try:
+                await ensure_connected()
                 yield _sse(
                     "step",
-                    step_payload("call_skill", step_names.get("call_skill", "call_skill"), "running"),
+                    step_payload("call_skill", f"执行技能：{skill_display_name}", "running"),
                 )
                 async with asyncio.timeout(policy.step_timeout_seconds):
                     async for delta in stream_llm_text(
                         llm_config=llm_config,
                         messages=llm_messages,
                     ):
+                        await ensure_connected()
                         chunks.append(delta)
                         yield _sse("token", {"text": delta})
             except TimeoutError:
@@ -192,11 +221,12 @@ async def iter_conversation_chat_sse(
                 return
 
             full = "".join(chunks)
+            await ensure_connected()
             yield _sse(
                 "step",
-                step_payload("call_skill", step_names.get("call_skill", "call_skill"), "succeeded"),
+                step_payload("call_skill", f"执行技能：{skill_display_name}", "succeeded"),
             )
-            yield _sse("step", step_payload("parse_output", "parse_output", "running"))
+            yield _sse("step", step_payload("parse_output", "解析结构化结果", "running"))
             try:
                 cases = parse_items(
                     full,
@@ -205,7 +235,7 @@ async def iter_conversation_chat_sse(
                 )
             except Exception as e:
                 logger.warning("流式结束后解析 JSON 失败: %s", e)
-                yield _sse("step", step_payload("parse_output", "parse_output", "failed"))
+                yield _sse("step", step_payload("parse_output", "解析结构化结果", "failed"))
                 yield _sse(
                     "error",
                     {
@@ -214,7 +244,7 @@ async def iter_conversation_chat_sse(
                     },
                 )
                 return
-            yield _sse("step", step_payload("parse_output", "parse_output", "succeeded"))
+            yield _sse("step", step_payload("parse_output", "解析结构化结果", "succeeded"))
 
             dump = [c.model_dump() for c in cases]
             exec_result = ExecutionResult(
@@ -235,17 +265,19 @@ async def iter_conversation_chat_sse(
                 ],
                 outputs={"test_case_count": len(dump)},
             )
-            yield _sse("step", step_payload("persist", "persist", "running"))
+            yield _sse("step", step_payload("persist", "保存会话", "running"))
+            yield _sse("step", step_payload("persist", "保存会话", "succeeded"))
+            yield _sse("step", step_payload("respond", step_names.get("respond", "respond"), "succeeded"))
             await save_assistant_message(
                 db,
                 conversation_id=resolved.row.id,
                 text=full,
                 execution=exec_result.model_dump(),
+                plan_steps=snapshot_plan_steps(),
             )
             await db.commit()
-            yield _sse("step", step_payload("persist", "persist", "succeeded"))
-            yield _sse("step", step_payload("respond", step_names.get("respond", "respond"), "running"))
 
+            await ensure_connected()
             yield _sse(
                 "done",
                 {
@@ -257,6 +289,9 @@ async def iter_conversation_chat_sse(
                     "execution": {"status": exec_result.status, "traces": _trace_dump(exec_result)},
                 },
             )
+        except asyncio.CancelledError:
+            # client aborted / disconnected
+            return
         except Exception as e:
             logger.exception("SSE 编排异常")
             if current_step:
