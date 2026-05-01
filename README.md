@@ -1,12 +1,19 @@
 # NexTest Platform · 下一代测试平台
 
-**技能驱动的测试智能体 Web 平台：用户 LLM 配置、对话（含 SSE），API 统一在 `/api`。**  
-*A web platform for test-oriented agents: Vue 3 + FastAPI + MySQL.*
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Vue](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)](https://vuejs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Python](https://img.shields.io/badge/Python-3.13+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+
+[![NexTest 封面](imgs/cover.jpg)](imgs/cover.jpg)
+
+**NexTest** 是一款面向团队的「下一代测试平台」，以 **AI 测试助手**为核心，把“需求理解 → 场景拆解 → 结构化产出 → 复用沉淀”串成可扩展的技能化流程。
+
+- **技能可扩展**：按 `skill_id` 注册技能包，统一接入智能体对话与执行链路  
+- **模型可配置**：支持用户维护多套 OpenAI 兼容 LLM 配置，按会话选择与调参  
+- **对话与流式**：同时支持普通对话与 SSE 流式输出，适配长任务体验  
+- **结构化结果**：面向测试产物（如测试用例）做结构化输出与前端渲染  
+- **会话可追溯**：会话/历史消息落库，便于回看、复盘与协作
 
 ---
 
