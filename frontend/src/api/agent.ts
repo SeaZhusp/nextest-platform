@@ -9,6 +9,8 @@ import type {
   AgentSessionRenameRequest,
   AgentSessionSummaryOut,
   AgentStreamDonePayload,
+  AgentStreamPlanPayload,
+  AgentStreamStepPayload,
   TextPart
 } from '@/schemas/agent'
 import type { TestCaseItem } from '@/schemas/testcase'
@@ -59,6 +61,8 @@ export function patchAgentSessionRestoreLatestRawOutput(sessionId: string) {
 
 type StreamHandlers = {
   onToken?: (text: string) => void
+  onPlan?: (plan: AgentStreamPlanPayload) => void
+  onStep?: (step: AgentStreamStepPayload) => void
   onDone?: (data: AgentStreamDonePayload) => void
   onError?: (message: string, details?: unknown) => void
 }
@@ -117,6 +121,20 @@ export async function postAgentChatStream(
     const payload = JSON.parse(dataLine) as Record<string, unknown>
     if (eventName === 'token' && typeof payload.text === 'string') {
       handlers.onToken?.(payload.text)
+    } else if (eventName === 'plan') {
+      const plan = payload as AgentStreamPlanPayload
+      if (Array.isArray(plan.steps)) {
+        handlers.onPlan?.({
+          steps: plan.steps
+            .filter((x) => x && typeof x.step_id === 'string' && typeof x.label === 'string')
+            .map((x) => ({ step_id: x.step_id, label: x.label }))
+        })
+      }
+    } else if (eventName === 'step') {
+      const step = payload as AgentStreamStepPayload
+      if (typeof step.step_id === 'string' && typeof step.label === 'string' && typeof step.status === 'string') {
+        handlers.onStep?.(step)
+      }
     } else if (eventName === 'done') {
       const d = payload as unknown as AgentStreamDonePayload
       const parts = (d.parts || []) as TextPart[]
@@ -126,7 +144,8 @@ export async function postAgentChatStream(
         skill_id: String(d.skill_id),
         parts,
         test_cases,
-        used_template: d.used_template
+        used_template: d.used_template,
+        execution: d.execution
       })
     } else if (eventName === 'error') {
       handlers.onError?.(String(payload.message || '流式生成失败'), payload.details)

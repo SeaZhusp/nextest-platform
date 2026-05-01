@@ -9,7 +9,7 @@ import {
   postAgentChatStream
 } from '@/api/agent'
 import { listUserLlmProfiles } from '@/api/userLlmProfiles'
-import type { AgentStreamDonePayload } from '@/schemas/agent'
+import type { AgentStreamPlanPayload, AgentStreamStepPayload } from '@/schemas/agent'
 import type { SkillMetaOut } from '@/schemas/skill'
 import { listSkills } from '@/api/skills'
 import {
@@ -263,12 +263,6 @@ watch(
   { immediate: true }
 )
 
-function buildStreamSummary(data: AgentStreamDonePayload) {
-  const n = data.test_cases.length
-  const tpl = data.used_template ? '（未选择模型配置或未传 Key，为模板用例）' : ''
-  return `技能「${data.skill_id}」已完成，共 ${n} 条用例。会话：${data.session_id} ${tpl}`.trim()
-}
-
 async function handleSend() {
   const t = inputText.value.trim()
   if (!t) return
@@ -296,13 +290,15 @@ async function handleSend() {
   mockMessages.value.push({
     id: assistId,
     role: 'assistant',
-    content: '正在生成… 模型流式输出在左侧「编辑器」中实时显示。'
+    content: '正在生成，请稍候…',
+    streamContent: '',
+    streaming: true,
+    currentStep: null,
+    planSteps: []
   })
 
   sending.value = true
   inputText.value = ''
-  panelDocument.value.markdown = ''
-  let streamBuf = ''
 
   try {
     await postAgentChatStream(
@@ -314,13 +310,40 @@ async function handleSend() {
         temperature: temperature.value
       },
       {
+        onPlan: (plan: AgentStreamPlanPayload) => {
+          const msg = mockMessages.value[assistIdx]
+          if (!msg) return
+          msg.planSteps = (plan.steps || []).map((s) => ({
+            stepId: s.step_id,
+            label: s.label || s.step_id,
+            status: 'pending'
+          }))
+        },
         onToken: (text) => {
-          streamBuf += text
-          panelDocument.value.markdown = streamBuf
-          panelDocument.value.sync.revision += 1
-          panelDocument.value.sync.lastEditedBy = 'markdown'
-          panelDocument.value.sync.lastEditedAt = Date.now()
-          outputTab.value = renderModes.value.includes('markdown') ? 'markdown' : defaultRender.value
+          const msg = mockMessages.value[assistIdx]
+          if (!msg) return
+          msg.streamContent = `${msg.streamContent || ''}${text}`
+        },
+        onStep: (step: AgentStreamStepPayload) => {
+          const msg = mockMessages.value[assistIdx]
+          if (!msg) return
+          if (Array.isArray(msg.planSteps) && msg.planSteps.length) {
+            const target = msg.planSteps.find((s) => s.stepId === step.step_id)
+            if (target) {
+              target.status = step.status
+            } else {
+              msg.planSteps.push({
+                stepId: step.step_id,
+                label: step.label || step.step_id,
+                status: step.status
+              })
+            }
+          }
+          msg.currentStep = {
+            stepId: step.step_id,
+            label: step.label,
+            status: step.status
+          }
         },
         onDone: (data) => {
           sessionId.value = data.session_id
@@ -335,7 +358,20 @@ async function handleSend() {
             canRestoreRaw.value = true
             outputTab.value = defaultRender.value
           }
-          mockMessages.value[assistIdx].content = buildStreamSummary(data)
+          const msg = mockMessages.value[assistIdx]
+          if (msg) {
+            msg.content = '执行完成'
+            msg.streaming = false
+            msg.currentStep = {
+              stepId: 'done',
+              label: '已完成',
+              status: 'succeeded'
+            }
+            if (Array.isArray(msg.planSteps)) {
+              const respondStep = msg.planSteps.find((s) => s.stepId === 'respond')
+              if (respondStep) respondStep.status = 'succeeded'
+            }
+          }
         },
         onError: (msg, details) => {
           const reason =
@@ -348,7 +384,16 @@ async function handleSend() {
               : ''
           const full = reason ? `${msg}（${reason}）` : msg
           message.error(full)
-          mockMessages.value[assistIdx].content = `生成失败：${full}`
+          const messageItem = mockMessages.value[assistIdx]
+          if (messageItem) {
+            messageItem.content = `生成失败：${full}`
+            messageItem.streaming = false
+            messageItem.currentStep = {
+              stepId: 'failed',
+              label: '执行失败',
+              status: 'failed'
+            }
+          }
         }
       }
     )

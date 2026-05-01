@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import {
   FileMarkdownOutlined,
   HistoryOutlined,
+  PlusOutlined,
   SaveOutlined,
   UnorderedListOutlined
 } from '@ant-design/icons-vue'
@@ -55,6 +56,21 @@ function onSave() {
 function onRestoreRaw() {
   emit('restoreRaw')
 }
+
+function onAddRow() {
+  const idx = documentModel.value.tableRows.length + 1
+  documentModel.value.tableRows.push({
+    key: `row_${Date.now()}`,
+    case_no: `TC-${idx}`,
+    module: '',
+    title: '',
+    preconditions: '',
+    steps: '',
+    expected: '',
+    priority: 'P2'
+  })
+  markEdited('table')
+}
 </script>
 
 <template>
@@ -64,6 +80,12 @@ function onRestoreRaw() {
         <div class="agent-output__actions">
           <a-button size="small" @click="markdownPreview = !markdownPreview" v-if="outputTab === 'markdown'">
             {{ markdownPreview ? '编辑' : '预览' }}
+          </a-button>
+          <a-button size="small" @click="onAddRow" v-if="outputTab === 'table'">
+            <template #icon>
+              <PlusOutlined />
+            </template>
+            新增行
           </a-button>
           <a-button size="small" :disabled="!props.canRestoreRaw" @click="onRestoreRaw">
             <template #icon>
@@ -75,7 +97,7 @@ function onRestoreRaw() {
             <template #icon>
               <SaveOutlined />
             </template>
-            保存
+            暂存
           </a-button>
         </div>
       </template>

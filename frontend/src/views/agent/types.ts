@@ -1,9 +1,19 @@
 /** 智能体对话消息（与页面 / 接口演进对齐） */
+export interface AgentStepState {
+  stepId: string
+  label: string
+  status: 'pending' | 'running' | 'succeeded' | 'failed' | 'skipped'
+}
+
 export interface AgentChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
   done?: boolean
+  streamContent?: string
+  streaming?: boolean
+  currentStep?: AgentStepState | null
+  planSteps?: AgentStepState[]
 }
 
 /** 输出区 Tab（与 OutputPanel 一致） */

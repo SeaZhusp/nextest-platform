@@ -75,6 +75,24 @@ export interface AgentStreamDonePayload {
   parts: TextPart[]
   test_cases: TestCaseItem[]
   used_template?: boolean
+  execution?: Record<string, unknown>
+}
+
+export type AgentStreamStepStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'skipped'
+
+export interface AgentStreamStepPayload {
+  step_id: string
+  label: string
+  status: AgentStreamStepStatus
+}
+
+export interface AgentStreamPlanStep {
+  step_id: string
+  label: string
+}
+
+export interface AgentStreamPlanPayload {
+  steps: AgentStreamPlanStep[]
 }
 
 /** GET /agent/sessions/{id}/messages */

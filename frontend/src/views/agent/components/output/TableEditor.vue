@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons-vue'
+import { DeleteOutlined } from '@ant-design/icons-vue'
 import { computed } from 'vue'
 import type { TestCaseRow } from '../../types'
 
@@ -40,21 +40,6 @@ function isMultilineField(field: string): boolean {
   return field === 'preconditions' || field === 'steps' || field === 'expected'
 }
 
-function addRow() {
-  const idx = rows.value.length + 1
-  rows.value.push({
-    key: `row_${Date.now()}`,
-    case_no: `TC-${idx}`,
-    module: '',
-    title: '',
-    preconditions: '',
-    steps: '',
-    expected: '',
-    priority: 'P2'
-  })
-  notifyEdited()
-}
-
 function removeRow(rowKey: string) {
   rows.value = rows.value.filter((r) => r.key !== rowKey)
   notifyEdited()
@@ -63,12 +48,6 @@ function removeRow(rowKey: string) {
 
 <template>
   <div class="output-table">
-    <div class="output-table__actions">
-      <a-button size="small" @click="addRow">
-        <template #icon><PlusOutlined /></template>
-        新增行
-      </a-button>
-    </div>
     <a-table
       :columns="props.columns"
       :data-source="tableRows"
@@ -124,9 +103,5 @@ function removeRow(rowKey: string) {
   :deep(.ant-table) {
     font-size: 12px;
   }
-}
-
-.output-table__actions {
-  margin-bottom: 8px;
 }
 </style>
