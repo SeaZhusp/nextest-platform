@@ -10,6 +10,9 @@ import {
 <template>
   <div class="agent-chat__welcome">
     <div class="agent-chat__welcome-inner">
+      <div class="agent-chat__welcome-icon" aria-hidden="true">
+        <RobotOutlined />
+      </div>
       <ul class="agent-chat__features">
         <li><CommentOutlined /> 智能对话</li>
         <li><ThunderboltOutlined /> 快速响应</li>
@@ -30,12 +33,19 @@ import {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #8c8c8c;
+  color: #bfbfbf;
 }
 
 .agent-chat__welcome-inner {
   width: min(460px, 100%);
   text-align: center;
+}
+
+.agent-chat__welcome-icon {
+  margin-bottom: 20px;
+  font-size: 48px;
+  line-height: 1;
+  color: #8c8c8c;
 }
 
 .agent-chat__features {
@@ -45,8 +55,8 @@ import {
   font-size: 15px;
   font-weight: 500;
   line-height: 1.8;
-  text-align: left;
-  color: #595959;
+  text-align: center;
+  color: #8c8c8c;
   max-width: 260px;
   margin-left: auto;
   margin-right: auto;
@@ -55,6 +65,7 @@ import {
 .agent-chat__features li {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
 }
 
@@ -63,6 +74,6 @@ import {
   max-width: 380px;
   font-size: 13px;
   line-height: 1.65;
-  color: #8c8c8c;
+  color: #bfbfbf;
 }
 </style>

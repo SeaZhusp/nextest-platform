@@ -20,7 +20,7 @@ const features = [
           <TeamOutlined />
         </div>
       </div>
-      <h1 class="brand-title">NEXTest</h1>
+      <h1 class="brand-title">NextTest</h1>
       <p class="brand-sub">多智能体协作平台</p>
       <p class="brand-desc">
         专业的 AI 智能体与协作工具，让多个智能体协同工作，提升任务执行效率。

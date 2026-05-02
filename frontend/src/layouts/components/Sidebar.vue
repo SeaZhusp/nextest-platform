@@ -7,7 +7,6 @@ import {
   ShoppingOutlined,
   UserOutlined,
   SettingOutlined,
-  DatabaseOutlined,
   AppstoreOutlined,
   TeamOutlined,
   RobotOutlined,
@@ -158,6 +157,13 @@ watch(() => props.collapsed, (collapsed) => {
 function handleMenuClick(info: { key: string }) {
   emit('menuClick', info)
 }
+
+const LOGO_SRC = '/logo2.jpg'
+const logoFailed = ref(false)
+
+function onLogoError() {
+  logoFailed.value = true
+}
 </script>
 
 <template>
@@ -174,13 +180,23 @@ function handleMenuClick(info: { key: string }) {
       zIndex: 999
     }"
   >
-    <!-- Logo区域 -->
+    <!-- Logo：logo2.jpg；加载失败时用图标占位 -->
     <div class="sidebar-logo">
       <div class="logo-content">
-        <div class="logo-icon">
-          <DatabaseOutlined v-if="collapsed" />
-          <span v-else>NEXTest</span>
-        </div>
+        <img
+          v-if="!logoFailed"
+          key="sidebar-logo-img"
+          :src="LOGO_SRC"
+          alt=""
+          class="logo-img"
+          @error="onLogoError"
+        />
+        <AppstoreOutlined
+          v-else
+          key="sidebar-logo-fallback"
+          class="logo-fallback"
+          aria-hidden="true"
+        />
       </div>
     </div>
 
@@ -225,7 +241,7 @@ function handleMenuClick(info: { key: string }) {
 }
 
 .sidebar-logo {
-  height: 64px;
+  height: 88px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -238,17 +254,22 @@ function handleMenuClick(info: { key: string }) {
   justify-content: center;
   width: 100%;
   height: 100%;
+  box-sizing: border-box;
+  padding: 0 10px;
 }
 
-.logo-icon {
+.logo-img {
+  height: 76px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 8px;
+}
+
+.logo-fallback {
+  font-size: 52px;
   color: #1890ff;
-  font-size: 18px;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
 }
 
 .sidebar-menu {

@@ -109,7 +109,7 @@ onMounted(() => {
           <a type="link" class="link" @click="goRegister">立即注册</a>
         </p>
 
-        <p class="copyright">© 2026 NEXTest. All rights reserved.</p>
+        <p class="copyright">© 2026 NextTest. All rights reserved.</p>
       </div>
     </div>
   </div>

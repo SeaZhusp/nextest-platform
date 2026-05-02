@@ -152,7 +152,7 @@ onMounted(() => {
           <a type="link" class="link" @click="goLogin">立即登录</a>
         </p>
 
-        <p class="copyright">© 2026 NEXTest. 保留所有权利。</p>
+        <p class="copyright">© 2026 NextTest. 保留所有权利。</p>
       </div>
     </div>
   </div>
