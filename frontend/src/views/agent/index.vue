@@ -17,13 +17,14 @@ import {
   postAgentChatStream
 } from '@/api/agent'
 import { listUserLlmProfiles } from '@/api/userLlmProfiles'
-import type { AgentStreamPlanPayload, AgentStreamStepPayload } from '@/schemas/agent'
 import type { SkillMetaOut } from '@/schemas/skill'
 import { listSkills } from '@/api/skills'
 import {
   buildTextParts,
   validatePhase1UserInput,
-  type AgentHistoryMessageOut
+  type AgentHistoryMessageOut,
+  type AgentStreamPlanPayload,
+  type AgentStreamStepPayload,
 } from '@/schemas/agent'
 import type { TestCaseItem } from '@/schemas/testcase'
 import type { UserLlmProfileOut } from '@/schemas/userLlmProfile'
@@ -73,6 +74,8 @@ function applyWelcomePrompt(text: string) {
 }
 
 const sessionId = ref<string | null>(null)
+/** 从侧边栏打开历史会话时，在主内容区展示骨架屏，不用全局 success 提示 */
+const historySessionLoading = ref(false)
 const sending = ref(false)
 const activeStreamAbort = ref<AbortController | null>(null)
 const outputTab = ref<AgentOutputTabKey>('table')
@@ -158,38 +161,6 @@ function buildMindmapFromRows(rows: DocumentModel['tableRows']): MindmapNode[] {
   return [...map.values()]
 }
 
-function buildRowsFromMindmap(
-  nodes: MindmapNode[],
-  previousRows: DocumentModel['tableRows']
-): DocumentModel['tableRows'] {
-  const prevByCaseNo = new Map(previousRows.map((r) => [r.case_no, r]))
-  const rows: DocumentModel['tableRows'] = []
-  let fallbackIndex = 1
-  for (const moduleNode of nodes) {
-    const moduleName = moduleNode.title.trim() || '未分组'
-    const children = Array.isArray(moduleNode.children) ? moduleNode.children : []
-    for (const child of children) {
-      const label = (child.title || '').trim()
-      if (!label) continue
-      const m = label.match(/^(\S+)\s+(.+)$/)
-      const caseNo = (m?.[1] || `TC-${fallbackIndex++}`).trim()
-      const title = (m?.[2] || label).trim()
-      const prev = prevByCaseNo.get(caseNo)
-      rows.push({
-        key: prev?.key || `row_${child.key}`,
-        case_no: caseNo,
-        module: moduleName,
-        title,
-        preconditions: prev?.preconditions || '',
-        steps: prev?.steps || '',
-        expected: prev?.expected || '',
-        priority: prev?.priority || 'P2'
-      })
-    }
-  }
-  return rows
-}
-
 function normalizeDocumentPayload(payload: unknown): DocumentModel {
   const p = payload && typeof payload === 'object' ? (payload as Partial<DocumentModel>) : {}
   const rows = Array.isArray(p.tableRows) ? (p.tableRows as DocumentModel['tableRows']) : []
@@ -225,23 +196,6 @@ watch(
     if (panelDocument.value.sync.lastEditedBy !== 'table') return
     syncGuard = true
     panelDocument.value.mindmap = buildMindmapFromRows(rows)
-    panelDocument.value.markdown = buildMarkdownFromRows(rows)
-    panelDocument.value.sync.revision += 1
-    panelDocument.value.sync.lastEditedBy = 'system'
-    panelDocument.value.sync.lastEditedAt = Date.now()
-    syncGuard = false
-  },
-  { deep: true }
-)
-
-watch(
-  () => panelDocument.value.mindmap,
-  (mindmap) => {
-    if (syncGuard) return
-    if (panelDocument.value.sync.lastEditedBy !== 'mindmap') return
-    syncGuard = true
-    const rows = buildRowsFromMindmap(mindmap, panelDocument.value.tableRows)
-    panelDocument.value.tableRows = rows
     panelDocument.value.markdown = buildMarkdownFromRows(rows)
     panelDocument.value.sync.revision += 1
     panelDocument.value.sync.lastEditedBy = 'system'
@@ -505,10 +459,9 @@ function resetSessionForSkillSwitch() {
       lastEditedAt: Date.now()
     }
   }
-  outputTab.value = defaultRender.value
 }
 
-async function handleNewSession() {
+function handleNewSession() {
   resetSessionForSkillSwitch()
   let skillHint = ''
   if (registeredSkills.value.length) {
@@ -581,7 +534,7 @@ watch(sessionId, () => {
 })
 
 function onSidebarNewSessionEvent() {
-  void handleNewSession()
+  handleNewSession()
 }
 
 function onSidebarOpenSessionEvent(e: Event) {
@@ -605,9 +558,7 @@ function userTextFromApiMessage(content: Record<string, unknown>): string {
     .trim()
 }
 
-function assistantBriefFromApiMessage(content: Record<string, unknown>): string {
-  const text = typeof content.text === 'string' ? content.text.trim() : ''
-  if (!text) return '执行完成，结果请查看输出区'
+function assistantBriefFromApiMessage(_content: Record<string, unknown>): string {
   return '执行完成，结果请查看输出区'
 }
 
@@ -749,6 +700,8 @@ async function handleRestoreRaw() {
 
 async function onSelectHistorySession(payload: { sessionId: string; skillId: string }) {
   const { sessionId: sid, skillId } = payload
+  setLayoutMode('split')
+  historySessionLoading.value = true
   try {
     const res = await getAgentSessionMessages(sid)
     const data = res.data
@@ -787,9 +740,10 @@ async function onSelectHistorySession(payload: { sessionId: string; skillId: str
       }
     })
     tryHydrateDocumentFromHistory(data.messages)
-    message.success('已载入历史会话')
   } catch {
     /* request 拦截器已提示 */
+  } finally {
+    historySessionLoading.value = false
   }
 }
 
@@ -1031,6 +985,7 @@ onUnmounted(() => {
           :sending="sending"
           :profiles="llmProfiles"
           :profiles-loading="profilesLoading"
+          :history-session-loading="historySessionLoading"
           @send="handleSend"
           @stop="handleStop"
           @skill-change="handleSkillChange"

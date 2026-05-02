@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { AppstoreOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons-vue'
-
-defineProps<{
-  collapsed: boolean
-}>()
+import { AppstoreOutlined, MenuFoldOutlined } from '@ant-design/icons-vue'
 
 const emit = defineEmits<{
   toggleCollapsed: []
@@ -20,8 +16,8 @@ function onLogoError() {
 
 <template>
   <div class="logo">
-    <div class="sidebar-logo-row" :class="{ 'sidebar-logo-row--collapsed': collapsed }">
-      <div v-if="!collapsed" class="logo-content">
+    <div class="sidebar-logo-row">
+      <div class="logo-content">
         <img
           v-if="!logoFailed"
           key="sidebar-logo-img"
@@ -44,11 +40,11 @@ function onLogoError() {
       <a-button
         type="text"
         class="sidebar-fold-btn"
-        :aria-label="collapsed ? '展开侧边栏' : '收起侧边栏'"
+        aria-label="收起侧边栏"
+        title="收起侧边栏"
         @click="emit('toggleCollapsed')"
       >
-        <MenuUnfoldOutlined v-if="collapsed" />
-        <MenuFoldOutlined v-else />
+        <MenuFoldOutlined />
       </a-button>
     </div>
   </div>
@@ -67,11 +63,6 @@ function onLogoError() {
   min-height: 56px;
   padding: 8px 10px;
   background: #fff;
-
-  &--collapsed {
-    justify-content: center;
-    padding: 8px 0;
-  }
 }
 
 .sidebar-fold-btn {

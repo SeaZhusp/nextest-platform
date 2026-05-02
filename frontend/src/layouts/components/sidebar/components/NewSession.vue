@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { PlusOutlined } from '@ant-design/icons-vue'
 
-defineProps<{
-  collapsed: boolean
-}>()
-
 const emit = defineEmits<{
   'new-session': []
 }>()
@@ -12,7 +8,7 @@ const emit = defineEmits<{
 
 <template>
   <div class="new-session">
-    <div v-if="!collapsed" class="new-session__primary">
+    <div class="new-session__primary">
       <button
         type="button"
         class="new-session__btn"
@@ -22,18 +18,6 @@ const emit = defineEmits<{
         <PlusOutlined class="new-session__btn-icon" aria-hidden="true" />
         <span>新建会话</span>
       </button>
-    </div>
-
-    <div v-else class="new-session__collapsed">
-      <a-button
-        type="text"
-        class="new-session__icon-btn"
-        title="新建会话"
-        aria-label="新建会话"
-        @click="emit('new-session')"
-      >
-        <PlusOutlined />
-      </a-button>
     </div>
   </div>
 </template>
@@ -79,26 +63,5 @@ const emit = defineEmits<{
 
 .new-session__btn-icon {
   font-size: 16px;
-}
-
-.new-session__collapsed {
-  display: flex;
-  justify-content: center;
-  padding: 4px 0 8px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.new-session__icon-btn {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  font-size: 16px;
-
-  &:hover {
-    background: #f5f5f5;
-  }
 }
 </style>

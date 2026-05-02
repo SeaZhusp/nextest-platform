@@ -9,14 +9,13 @@ export interface AgentChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
-  done?: boolean
   streamContent?: string
   streaming?: boolean
   currentStep?: AgentStepState | null
   planSteps?: AgentStepState[]
 }
 
-/** 输出区 Tab（与 OutputPanel 一致） */
+/** 输出区 Tab（当前面板实现 table / markdown；mindmap 预留与技能 render_modes 对齐） */
 export type AgentOutputTabKey = 'table' | 'markdown' | 'mindmap'
 
 export interface TestCaseRow {

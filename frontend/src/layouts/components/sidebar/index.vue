@@ -78,10 +78,10 @@ async function goNewSession() {
 
 <template>
   <a-layout-sider
-    :collapsed="collapsed"
+    :collapsed="false"
     :width="260"
-    :collapsedWidth="80"
     class="sidebar"
+    :class="{ 'sidebar--hidden': collapsed }"
     :style="{
       position: 'fixed',
       left: 0,
@@ -90,14 +90,14 @@ async function goNewSession() {
       zIndex: 999,
     }"
   >
-    <div class="sidebar-inner" :class="{ 'sidebar-inner--collapsed': collapsed }">
-      <Logo :collapsed="collapsed" @toggle-collapsed="emitToggleCollapsed" />
+    <div class="sidebar-inner">
+      <Logo @toggle-collapsed="emitToggleCollapsed" />
 
-      <NewSession :collapsed="collapsed" @new-session="goNewSession" />
+      <NewSession @new-session="goNewSession" />
 
-      <Menu v-if="!collapsed" />
+      <Menu />
 
-      <History v-if="!collapsed" />
+      <History />
 
       <div class="sidebar-footer">
         <a-dropdown
@@ -105,17 +105,10 @@ async function goNewSession() {
           placement="topLeft"
           :trigger="['hover']"
         >
-          <div
-            class="sidebar-user-trigger"
-            :class="{ 'sidebar-user-trigger--collapsed': collapsed }"
-          >
-            <a-avatar :size="collapsed ? 28 : 30" class="sidebar-user-avatar">{{
-              avatarLetter
-            }}</a-avatar>
-            <template v-if="!collapsed">
-              <span class="sidebar-user-name">{{ displayName }}</span>
-              <DownOutlined class="sidebar-user-caret" />
-            </template>
+          <div class="sidebar-user-trigger">
+            <a-avatar :size="30" class="sidebar-user-avatar">{{ avatarLetter }}</a-avatar>
+            <span class="sidebar-user-name">{{ displayName }}</span>
+            <DownOutlined class="sidebar-user-caret" />
           </div>
 
           <template #overlay>
@@ -142,11 +135,18 @@ async function goNewSession() {
   background: #fff;
   border-right: 1px solid #f0f0f0;
   overflow: hidden;
+  transition: transform 0.2s ease;
 
   :deep(.ant-layout-sider-children) {
     height: 100%;
     overflow: hidden;
     display: block;
+  }
+
+  &--hidden {
+    transform: translateX(-100%);
+    pointer-events: none;
+    border-right: none;
   }
 }
 
@@ -155,16 +155,8 @@ async function goNewSession() {
   width: 100%;
   height: 100%;
   overflow: hidden;
-}
-
-.sidebar-inner:not(.sidebar-inner--collapsed) {
   display: grid;
   grid-template-rows: auto auto auto minmax(0, 1fr) auto;
-}
-
-.sidebar-inner.sidebar-inner--collapsed {
-  display: grid;
-  grid-template-rows: auto auto auto;
 }
 
 .sidebar-footer {
@@ -187,10 +179,6 @@ async function goNewSession() {
     background: #f5f5f5;
   }
 
-  &--collapsed {
-    justify-content: center;
-    padding: 8px 0;
-  }
 }
 
 .sidebar-user-avatar {
