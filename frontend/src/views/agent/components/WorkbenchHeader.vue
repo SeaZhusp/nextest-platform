@@ -1,50 +1,33 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
 import {
   AppstoreOutlined,
   ColumnWidthOutlined,
   CommentOutlined,
-  FullscreenExitOutlined,
-  FullscreenOutlined,
-  HistoryOutlined,
-  PlusOutlined,
-  RobotOutlined
 } from '@ant-design/icons-vue'
-import SessionHistoryDrawer from './chat-panel/SessionHistoryDrawer.vue'
 
 type AgentLayoutMode = 'split' | 'output-only' | 'chat-only'
 
-const props = defineProps<{
-  sessionId: string | null
+defineProps<{
   layoutMode: AgentLayoutMode
-  immersiveMode: boolean
+  title: string
+  subtitle?: string
 }>()
 
 const emit = defineEmits<{
   'update:layout-mode': [mode: AgentLayoutMode]
-  'toggle-immersive': []
-  'new-session': []
-  'select-history-session': [payload: { sessionId: string; skillId: string }]
 }>()
 
-const historyOpen = ref(false)
-
-const sessionText = computed(() => {
-  if (!props.sessionId) return '未建立'
-  return `${props.sessionId.slice(0, 8)}…`
-})
+const defaultSubtitle = '内容由智能 AI 生成，请仔细甄别'
 </script>
 
 <template>
   <div class="agent-page__workbench-head">
-    <div class="agent-page__head-left">
-      <span class="agent-page__head-title">
-        <RobotOutlined />
-        <span>测试助手</span>
-      </span>
-      <span class="agent-page__head-session" :title="sessionId || undefined"> 会话：{{ sessionText }} </span>
+    <div class="agent-page__head-spacer" aria-hidden="true" />
+    <div class="agent-page__head-center-block">
+      <div class="agent-page__head-title">{{ title }}</div>
+      <div class="agent-page__head-subtitle">{{ subtitle ?? defaultSubtitle }}</div>
     </div>
-    <div class="agent-page__head-center">
+    <div class="agent-page__head-right">
       <a-radio-group
         size="small"
         :value="layoutMode"
@@ -68,41 +51,16 @@ const sessionText = computed(() => {
         </a-radio-button>
       </a-radio-group>
     </div>
-    <div class="agent-page__head-actions">
-      <a-tooltip :title="immersiveMode ? '退出沉浸模式' : '沉浸模式'">
-        <a-button
-          type="text"
-          size="small"
-          :class="{ 'agent-page__max-btn--active': immersiveMode }"
-          @click="emit('toggle-immersive')"
-        >
-          <template #icon>
-            <FullscreenOutlined v-if="!immersiveMode" />
-            <FullscreenExitOutlined v-else />
-          </template>
-        </a-button>
-      </a-tooltip>
-      <a-button type="text" size="small" title="新会话" @click="emit('new-session')">
-        <template #icon><PlusOutlined /></template>
-        新会话
-      </a-button>
-      <SessionHistoryDrawer v-model:open="historyOpen" @select="emit('select-history-session', $event)">
-        <a-button type="text" size="small" title="历史会话">
-          <template #icon><HistoryOutlined /></template>
-          历史
-        </a-button>
-      </SessionHistoryDrawer>
-    </div>
   </div>
 </template>
 
 <style scoped lang="scss">
 .agent-page__workbench-head {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto minmax(120px, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  padding: 8px 12px;
+  padding: 10px 16px;
   background: #fff;
   border: 1px solid #e8e8e8;
   border-radius: 8px;
@@ -110,45 +68,55 @@ const sessionText = computed(() => {
   flex-shrink: 0;
 }
 
-.agent-page__head-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.agent-page__head-spacer {
   min-width: 0;
 }
 
+.agent-page__head-center-block {
+  text-align: center;
+  min-width: 0;
+  grid-column: 2;
+}
+
 .agent-page__head-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: #262626;
+  line-height: 1.35;
 }
 
-.agent-page__head-session {
-  color: #8c8c8c;
+.agent-page__head-subtitle {
+  margin-top: 2px;
   font-size: 12px;
-  font-family: Consolas, Monaco, monospace;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 220px;
+  color: #8c8c8c;
+  line-height: 1.4;
 }
 
-.agent-page__head-center {
+.agent-page__head-right {
+  grid-column: 3;
+  justify-self: end;
   flex-shrink: 0;
 }
 
-.agent-page__head-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
+@media (max-width: 576px) {
+  .agent-page__workbench-head {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+  }
 
-.agent-page__max-btn--active {
-  color: #1677ff;
-  background: #e6f4ff;
+  .agent-page__head-center-block {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .agent-page__head-right {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: center;
+  }
+
+  .agent-page__head-spacer {
+    display: none;
+  }
 }
 </style>

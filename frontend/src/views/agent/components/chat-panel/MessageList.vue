@@ -60,65 +60,67 @@ watch(
 
 <template>
   <div ref="messageListRef" class="agent-chat__messages">
-    <div
-      v-for="m in messages"
-      :key="m.id"
-      class="agent-msg"
-      :class="m.role === 'user' ? 'agent-msg--user' : 'agent-msg--assistant'"
-    >
-      <a-avatar
-        class="agent-msg__avatar"
-        :style="{
-          backgroundColor: m.role === 'user' ? '#1890ff' : '#52c41a'
-        }"
+    <div class="agent-chat__messages-inner">
+      <div
+        v-for="m in messages"
+        :key="m.id"
+        class="agent-msg"
+        :class="m.role === 'user' ? 'agent-msg--user' : 'agent-msg--assistant'"
       >
-        {{ m.role === 'user' ? '我' : 'AI' }}
-      </a-avatar>
-      <div class="agent-msg__body">
-        <div class="agent-msg__bubble">{{ m.content }}</div>
-        <div class="agent-msg__meta" v-if="m.role === 'assistant' && m.currentStep">
-          <LoadingOutlined
-            v-if="m.currentStep.status === 'running'"
-            class="agent-msg__step-icon agent-msg__step-icon--spin"
-          />
-          <CheckCircleTwoTone v-else-if="m.currentStep.status === 'succeeded'" two-tone-color="#52c41a" />
-          <CloseCircleTwoTone v-else-if="m.currentStep.status === 'failed'" two-tone-color="#ff4d4f" />
-          <span class="agent-msg__step-text">当前步骤：{{ m.currentStep.label }}</span>
-          <a-button
-            v-if="!m.streaming && m.content.includes('结果请查看输出区')"
-            type="link"
-            size="small"
-            class="agent-msg__view-output-btn"
-            @click="emit('show-output')"
-          >
-            查看结果
-          </a-button>
-        </div>
-        <div v-if="m.role === 'assistant' && m.planSteps?.length" class="agent-msg__plan">
-          <div class="agent-msg__plan-title">执行步骤</div>
-          <div
-            v-for="step in m.planSteps"
-            :key="step.stepId"
-            class="agent-msg__plan-item"
-            :class="{
-              'agent-msg__plan-item--running': step.status === 'running',
-              'agent-msg__plan-item--done': step.status === 'succeeded',
-              'agent-msg__plan-item--failed': step.status === 'failed'
-            }"
-          >
-            <LoadingOutlined v-if="step.status === 'running'" class="agent-msg__step-icon--spin" />
-            <CheckCircleTwoTone v-else-if="step.status === 'succeeded'" two-tone-color="#52c41a" />
-            <CloseCircleTwoTone v-else-if="step.status === 'failed'" two-tone-color="#ff4d4f" />
-            <span v-else class="agent-msg__plan-dot" />
-            <span>{{ step.label }}</span>
-          </div>
-        </div>
-        <div
-          v-if="m.role === 'assistant' && m.streaming && m.streamContent"
-          :ref="(el) => setStreamBoxRef(m.id, el)"
-          class="agent-msg__stream"
+        <a-avatar
+          class="agent-msg__avatar"
+          :style="{
+            backgroundColor: m.role === 'user' ? '#1890ff' : '#52c41a'
+          }"
         >
-          {{ m.streamContent }}
+          {{ m.role === 'user' ? '我' : 'AI' }}
+        </a-avatar>
+        <div class="agent-msg__body">
+          <div class="agent-msg__bubble">{{ m.content }}</div>
+          <div class="agent-msg__meta" v-if="m.role === 'assistant' && m.currentStep">
+            <LoadingOutlined
+              v-if="m.currentStep.status === 'running'"
+              class="agent-msg__step-icon agent-msg__step-icon--spin"
+            />
+            <CheckCircleTwoTone v-else-if="m.currentStep.status === 'succeeded'" two-tone-color="#52c41a" />
+            <CloseCircleTwoTone v-else-if="m.currentStep.status === 'failed'" two-tone-color="#ff4d4f" />
+            <span class="agent-msg__step-text">当前步骤：{{ m.currentStep.label }}</span>
+            <a-button
+              v-if="!m.streaming && m.content.includes('结果请查看输出区')"
+              type="link"
+              size="small"
+              class="agent-msg__view-output-btn"
+              @click="emit('show-output')"
+            >
+              查看结果
+            </a-button>
+          </div>
+          <div v-if="m.role === 'assistant' && m.planSteps?.length" class="agent-msg__plan">
+            <div class="agent-msg__plan-title">执行步骤</div>
+            <div
+              v-for="step in m.planSteps"
+              :key="step.stepId"
+              class="agent-msg__plan-item"
+              :class="{
+                'agent-msg__plan-item--running': step.status === 'running',
+                'agent-msg__plan-item--done': step.status === 'succeeded',
+                'agent-msg__plan-item--failed': step.status === 'failed'
+              }"
+            >
+              <LoadingOutlined v-if="step.status === 'running'" class="agent-msg__step-icon--spin" />
+              <CheckCircleTwoTone v-else-if="step.status === 'succeeded'" two-tone-color="#52c41a" />
+              <CloseCircleTwoTone v-else-if="step.status === 'failed'" two-tone-color="#ff4d4f" />
+              <span v-else class="agent-msg__plan-dot" />
+              <span>{{ step.label }}</span>
+            </div>
+          </div>
+          <div
+            v-if="m.role === 'assistant' && m.streaming && m.streamContent"
+            :ref="(el) => setStreamBoxRef(m.id, el)"
+            class="agent-msg__stream"
+          >
+            {{ m.streamContent }}
+          </div>
         </div>
       </div>
     </div>
@@ -130,10 +132,25 @@ watch(
   flex: 1;
   overflow-y: auto;
   padding: 16px;
+  min-height: 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* 与 Composer 底部输入区一致的阅读宽度 */
+.agent-chat__messages-inner {
+  max-width: 800px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  min-height: 0;
 }
 
 .agent-msg {

@@ -1,26 +1,41 @@
 <script setup lang="ts">
-import {
-  RobotOutlined,
-  CommentOutlined,
-  ThunderboltOutlined,
-  UnorderedListOutlined,
-} from '@ant-design/icons-vue'
+const emit = defineEmits<{
+  'apply-prompt': [text: string]
+}>()
+
+const suggestions = [
+  '请根据需求描述生成登录与注册的测试用例',
+  '列出支付回调超时场景的验收要点',
+  '帮我梳理订单取消流程的接口测试场景',
+  '如何用等价类划分搜索框输入校验？',
+  '生成一份简易的性能测试关注点清单',
+  '请推荐几款适合接口契约测试的工具链',
+  '如何判断缺陷优先级是否合理？',
+  '输出敏捷迭代中的冒烟测试清单模板',
+  '请解释边界值分析法并给一个示例',
+]
+
+function onChip(text: string) {
+  emit('apply-prompt', text)
+}
 </script>
 
 <template>
   <div class="agent-chat__welcome">
     <div class="agent-chat__welcome-inner">
-      <div class="agent-chat__welcome-icon" aria-hidden="true">
-        <RobotOutlined />
+      <h1 class="agent-chat__greeting">有什么我能帮你的吗？</h1>
+      <div class="agent-chat__chips" role="list">
+        <button
+          v-for="(text, i) in suggestions"
+          :key="i"
+          type="button"
+          class="agent-chat__chip"
+          role="listitem"
+          @click="onChip(text)"
+        >
+          {{ text }}
+        </button>
       </div>
-      <ul class="agent-chat__features">
-        <li><CommentOutlined /> 智能对话</li>
-        <li><ThunderboltOutlined /> 快速响应</li>
-        <li><UnorderedListOutlined /> 结果结构化输出</li>
-      </ul>
-      <p class="agent-chat__hint">
-        选择技能与模型后输入你的需求，即可开始对话并在左侧查看输出结果。你也可以先发一条简单问题来快速体验。
-      </p>
     </div>
   </div>
 </template>
@@ -29,51 +44,67 @@ import {
 .agent-chat__welcome {
   flex: 1;
   min-height: 0;
-  padding: 24px 16px 12px;
+  padding: 24px 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #bfbfbf;
+  overflow-y: auto;
 }
 
 .agent-chat__welcome-inner {
-  width: min(460px, 100%);
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
   text-align: center;
 }
 
-.agent-chat__welcome-icon {
-  margin-bottom: 20px;
-  font-size: 48px;
-  line-height: 1;
-  color: #8c8c8c;
+.agent-chat__greeting {
+  margin: 0 0 28px;
+  font-size: 28px;
+  font-weight: 600;
+  color: #141414;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
 }
 
-.agent-chat__features {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 1.8;
-  text-align: center;
-  color: #8c8c8c;
-  max-width: 260px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.agent-chat__features li {
+.agent-chat__chips {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-wrap: wrap;
   gap: 10px;
+  justify-content: center;
 }
 
-.agent-chat__hint {
-  margin: 18px auto 0;
-  max-width: 380px;
+.agent-chat__chip {
+  appearance: none;
+  margin: 0;
+  padding: 10px 16px;
+  max-width: 100%;
+  text-align: left;
   font-size: 13px;
-  line-height: 1.65;
-  color: #bfbfbf;
+  line-height: 1.45;
+  color: #434343;
+  background: #f0f0f0;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+
+  &:hover {
+    background: #e6e6e6;
+    color: #141414;
+  }
+
+  &:active {
+    background: #dedede;
+  }
+}
+
+@media (max-width: 768px) {
+  .agent-chat__greeting {
+    font-size: 22px;
+    margin-bottom: 20px;
+  }
 }
 </style>

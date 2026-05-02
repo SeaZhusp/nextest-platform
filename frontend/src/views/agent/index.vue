@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import {
+  AGENT_ACTIVE_SESSION_CHANGED,
+  AGENT_SIDEBAR_NEW_SESSION,
+  AGENT_SIDEBAR_OPEN_SESSION,
+  type AgentActiveSessionDetail,
+  type AgentSidebarOpenSessionDetail,
+} from '@/constants/agentSidebarBridge'
 import { useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
@@ -55,7 +62,16 @@ function applySkillId(next: string) {
 
 const mockMessages = ref<AgentChatMessage[]>([])
 
+const workbenchTitle = computed(() =>
+  mockMessages.value.length === 0 ? '新对话' : '测试助手'
+)
+
 const inputText = ref('')
+
+function applyWelcomePrompt(text: string) {
+  inputText.value = text
+}
+
 const sessionId = ref<string | null>(null)
 const sending = ref(false)
 const activeStreamAbort = ref<AbortController | null>(null)
@@ -555,6 +571,28 @@ watch(
   { immediate: true }
 )
 
+function dispatchActiveSessionChanged() {
+  const detail: AgentActiveSessionDetail = { sessionId: sessionId.value }
+  window.dispatchEvent(new CustomEvent(AGENT_ACTIVE_SESSION_CHANGED, { detail }))
+}
+
+watch(sessionId, () => {
+  dispatchActiveSessionChanged()
+})
+
+function onSidebarNewSessionEvent() {
+  void handleNewSession()
+}
+
+function onSidebarOpenSessionEvent(e: Event) {
+  const d = (e as CustomEvent<AgentSidebarOpenSessionDetail>).detail
+  if (!d?.sessionId) return
+  void onSelectHistorySession({
+    sessionId: d.sessionId,
+    skillId: (d.skillId || 'test_case_gen').trim() || 'test_case_gen',
+  })
+}
+
 function userTextFromApiMessage(content: Record<string, unknown>): string {
   const parts = content.parts
   if (!Array.isArray(parts)) return ''
@@ -755,7 +793,7 @@ async function onSelectHistorySession(payload: { sessionId: string; skillId: str
   }
 }
 
-/** 输出区与对话区之间的可拖拽分隔（对话区固定宽度，输出区占满剩余） */
+/** 双栏时对话在左、输出在右；分隔条可拖（左侧对话区定宽，右侧输出区占满剩余） */
 const AGENT_CHAT_WIDTH_KEY = 'agent_chat_panel_width'
 const AGENT_LAYOUT_MODE_KEY = 'agent_layout_mode'
 const CHAT_PANEL_MIN = 280
@@ -768,7 +806,6 @@ const agentBodyRef = ref<HTMLElement | null>(null)
 const chatPanelWidthPx = ref(DEFAULT_CHAT_WIDTH)
 const resizeDragging = ref(false)
 const layoutMode = ref<AgentLayoutMode>('split')
-const immersiveMode = ref(false)
 let resizeStartX = 0
 let resizeStartW = 0
 
@@ -816,28 +853,13 @@ function setLayoutMode(mode: AgentLayoutMode): void {
   }
 }
 
-function toggleImmersiveMode(): void {
-  immersiveMode.value = !immersiveMode.value
-}
-
-function restoreFromMaximize(): void {
-  immersiveMode.value = false
-}
-
-function onGlobalKeydown(e: KeyboardEvent): void {
-  if (e.key === 'Escape' && immersiveMode.value) {
-    e.preventDefault()
-    restoreFromMaximize()
-  }
-}
-
 function onResizePointerMove(clientX: number) {
   if (layoutMode.value !== 'split') return
   if (!resizeDragging.value || !agentBodyRef.value) return
   const bodyW = agentBodyRef.value.getBoundingClientRect().width
   const delta = clientX - resizeStartX
-  /* 向右拖 = 分隔条右移 = 对话区变窄；向左拖 = 对话区变宽 */
-  chatPanelWidthPx.value = clampChatWidth(resizeStartW - delta, bodyW)
+  /* 对话在左：向右拖 = 分隔条右移 = 对话区变宽；向左拖 = 变窄 */
+  chatPanelWidthPx.value = clampChatWidth(resizeStartW + delta, bodyW)
 }
 
 function onResizePointerUp() {
@@ -918,7 +940,7 @@ function onResizeKeydown(e: KeyboardEvent) {
   const bodyW = agentBodyRef.value.getBoundingClientRect().width
   if (e.key === 'ArrowLeft') {
     e.preventDefault()
-    chatPanelWidthPx.value = clampChatWidth(chatPanelWidthPx.value + 16, bodyW)
+    chatPanelWidthPx.value = clampChatWidth(chatPanelWidthPx.value - 16, bodyW)
     try {
       localStorage.setItem(AGENT_CHAT_WIDTH_KEY, String(chatPanelWidthPx.value))
     } catch {
@@ -926,7 +948,7 @@ function onResizeKeydown(e: KeyboardEvent) {
     }
   } else if (e.key === 'ArrowRight') {
     e.preventDefault()
-    chatPanelWidthPx.value = clampChatWidth(chatPanelWidthPx.value - 16, bodyW)
+    chatPanelWidthPx.value = clampChatWidth(chatPanelWidthPx.value + 16, bodyW)
     try {
       localStorage.setItem(AGENT_CHAT_WIDTH_KEY, String(chatPanelWidthPx.value))
     } catch {
@@ -945,6 +967,9 @@ onMounted(() => {
   readStoredLayoutMode()
   readStoredChatWidth()
   requestAnimationFrame(() => applyChatWidthToBody())
+  dispatchActiveSessionChanged()
+  window.addEventListener(AGENT_SIDEBAR_NEW_SESSION, onSidebarNewSessionEvent)
+  window.addEventListener(AGENT_SIDEBAR_OPEN_SESSION, onSidebarOpenSessionEvent as EventListener)
   window.addEventListener('mousemove', onResizeMouseMove)
   window.addEventListener('mouseup', onResizeMouseUp)
   window.addEventListener('pointermove', onResizePointerMoveEvent)
@@ -954,10 +979,16 @@ onMounted(() => {
   window.addEventListener('touchend', onResizeTouchEnd)
   window.addEventListener('touchcancel', onResizeTouchEnd)
   window.addEventListener('resize', applyChatWidthToBody)
-  window.addEventListener('keydown', onGlobalKeydown)
 })
 
 onUnmounted(() => {
+  window.dispatchEvent(
+    new CustomEvent<AgentActiveSessionDetail>(AGENT_ACTIVE_SESSION_CHANGED, {
+      detail: { sessionId: null },
+    })
+  )
+  window.removeEventListener(AGENT_SIDEBAR_NEW_SESSION, onSidebarNewSessionEvent)
+  window.removeEventListener(AGENT_SIDEBAR_OPEN_SESSION, onSidebarOpenSessionEvent as EventListener)
   window.removeEventListener('mousemove', onResizeMouseMove)
   window.removeEventListener('mouseup', onResizeMouseUp)
   window.removeEventListener('pointermove', onResizePointerMoveEvent)
@@ -967,23 +998,14 @@ onUnmounted(() => {
   window.removeEventListener('touchend', onResizeTouchEnd)
   window.removeEventListener('touchcancel', onResizeTouchEnd)
   window.removeEventListener('resize', applyChatWidthToBody)
-  window.removeEventListener('keydown', onGlobalKeydown)
   document.body.style.removeProperty('cursor')
   document.body.style.removeProperty('user-select')
 })
 </script>
 
 <template>
-  <div class="agent-page" :class="{ 'agent-page--immersive': immersiveMode }">
-    <WorkbenchHeader
-      :session-id="sessionId"
-      :layout-mode="layoutMode"
-      :immersive-mode="immersiveMode"
-      @update:layout-mode="setLayoutMode"
-      @toggle-immersive="toggleImmersiveMode"
-      @new-session="handleNewSession"
-      @select-history-session="onSelectHistorySession"
-    />
+  <div class="agent-page">
+    <WorkbenchHeader :title="workbenchTitle" :layout-mode="layoutMode" @update:layout-mode="setLayoutMode" />
     <div
       ref="agentBodyRef"
       class="agent-body"
@@ -993,31 +1015,6 @@ onUnmounted(() => {
         'agent-body--chat-only': layoutMode === 'chat-only'
       }"
     >
-      <div v-show="layoutMode !== 'chat-only'" class="agent-body__output">
-        <OutputPanel
-          v-model:document="panelDocument"
-          v-model:output-tab="outputTab"
-          :session-id="sessionId"
-          :can-restore-raw="canRestoreRaw"
-          :render-modes="renderModes"
-          :table-columns="tableColumns"
-          @save="handleSave"
-          @export-excel="handleExportExcel"
-          @restore-raw="handleRestoreRaw"
-        />
-      </div>
-      <div
-        v-show="layoutMode === 'split'"
-        class="agent-body__resizer"
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="拖动调节输出区与对话区宽度"
-        tabindex="0"
-        @pointerdown="onResizePointerStart"
-        @mousedown="onResizeStart"
-        @touchstart.prevent="onResizeTouchStart"
-        @keydown="onResizeKeydown"
-      />
       <div
         v-show="layoutMode !== 'output-only'"
         class="agent-body__chat"
@@ -1038,6 +1035,32 @@ onUnmounted(() => {
           @stop="handleStop"
           @skill-change="handleSkillChange"
           @show-output="setLayoutMode('split')"
+          @apply-prompt="applyWelcomePrompt"
+        />
+      </div>
+      <div
+        v-show="layoutMode === 'split'"
+        class="agent-body__resizer"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="拖动调节对话区与输出区宽度"
+        tabindex="0"
+        @pointerdown="onResizePointerStart"
+        @mousedown="onResizeStart"
+        @touchstart.prevent="onResizeTouchStart"
+        @keydown="onResizeKeydown"
+      />
+      <div v-show="layoutMode !== 'chat-only'" class="agent-body__output">
+        <OutputPanel
+          v-model:document="panelDocument"
+          v-model:output-tab="outputTab"
+          :session-id="sessionId"
+          :can-restore-raw="canRestoreRaw"
+          :render-modes="renderModes"
+          :table-columns="tableColumns"
+          @save="handleSave"
+          @export-excel="handleExportExcel"
+          @restore-raw="handleRestoreRaw"
         />
       </div>
     </div>
@@ -1050,21 +1073,10 @@ onUnmounted(() => {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 128px);
-  max-height: calc(100vh - 128px);
-  min-height: 0;
-  overflow: hidden;
-}
-
-.agent-page--immersive {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: #f5f5f5;
   height: 100vh;
   max-height: 100vh;
-  border-radius: 0;
-  padding: 8px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .agent-body {

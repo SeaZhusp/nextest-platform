@@ -75,7 +75,7 @@ function goLlmProfiles() {
   <a-layout-header 
     class="header"
     :style="{ 
-      marginLeft: collapsed ? '80px' : '220px',
+      marginLeft: collapsed ? '80px' : '260px',
       transition: 'margin-left 0.2s'
     }"
   >

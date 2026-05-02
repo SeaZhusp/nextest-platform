@@ -25,13 +25,14 @@ const emit = defineEmits<{
   stop: []
   'skill-change': [skillId: string]
   'show-output': []
+  'apply-prompt': [text: string]
 }>()
 </script>
 
 <template>
   <section class="agent-chat">
-    <Welcome v-if="messages.length === 0" />
-    <MessageList :messages="messages" @show-output="emit('show-output')" />
+    <Welcome v-if="messages.length === 0" @apply-prompt="emit('apply-prompt', $event)" />
+    <MessageList v-else :messages="messages" @show-output="emit('show-output')" />
     <Composer
       v-model:input-text="inputText"
       v-model:selected-profile-id="selectedProfileId"
@@ -42,6 +43,7 @@ const emit = defineEmits<{
       :sending="sending"
       :profiles="profiles"
       :profiles-loading="profilesLoading"
+      narrow-max-width
       @send="emit('send')"
       @stop="emit('stop')"
       @skill-change="emit('skill-change', $event)"
@@ -58,7 +60,7 @@ const emit = defineEmits<{
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #fafafa;
+  background: #f7f8fa;
 }
 
 .agent-chat > :deep(.agent-chat__header),

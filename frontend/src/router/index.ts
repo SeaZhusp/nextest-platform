@@ -30,7 +30,31 @@ const routes = [
         path: 'agent',
         name: 'agent',
         component: () => import('@/views/agent/index.vue'),
-        meta: { title: '测试助手', icon: 'RobotOutlined', showInMenu: true }
+        meta: { title: '测试助手', icon: 'RobotOutlined', showInMenu: false }
+      },
+      {
+        path: 'hub/test-cases',
+        name: 'hub-test-cases',
+        component: () => import('@/views/hub/ComingSoon.vue'),
+        meta: { title: '测试用例', icon: 'FileTextOutlined', showInMenu: true }
+      },
+      {
+        path: 'hub/ui-test',
+        name: 'hub-ui-test',
+        component: () => import('@/views/hub/ComingSoon.vue'),
+        meta: { title: 'UI测试', icon: 'DesktopOutlined', showInMenu: true }
+      },
+      {
+        path: 'hub/api-test',
+        name: 'hub-api-test',
+        component: () => import('@/views/hub/ComingSoon.vue'),
+        meta: { title: '接口测试', icon: 'ApiOutlined', showInMenu: true }
+      },
+      {
+        path: 'hub/perf-test',
+        name: 'hub-perf-test',
+        component: () => import('@/views/hub/ComingSoon.vue'),
+        meta: { title: '性能测试', icon: 'ThunderboltOutlined', showInMenu: true }
       },
       {
         path: 'agent-executions',
@@ -39,7 +63,7 @@ const routes = [
         meta: {
           title: '执行看板',
           icon: 'DashboardOutlined',
-          showInMenu: true,
+          showInMenu: false,
           activeMenu: '/agent'
         }
       },
@@ -52,6 +76,7 @@ const routes = [
       {
         path: 'system',
         name: 'system',
+        component: () => import('@/layouts/components/RouterOutlet.vue'),
         meta: {
           title: '系统管理',
           icon: 'SettingOutlined',

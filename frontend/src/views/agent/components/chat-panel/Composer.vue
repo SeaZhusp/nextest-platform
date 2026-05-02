@@ -14,6 +14,8 @@ const props = defineProps<{
   sending: boolean
   profiles: UserLlmProfileOut[]
   profilesLoading: boolean
+  /** 底部输入区限制最大宽度并居中（新建会话与历史会话一致） */
+  narrowMaxWidth?: boolean
 }>()
 
 const inputText = defineModel<string>('inputText', { default: '' })
@@ -81,8 +83,11 @@ function onModelPick(profileId: number) {
 </script>
 
 <template>
-  <footer class="agent-chat__composer-outer">
-    <div class="composer-card">
+  <footer
+    class="agent-chat__composer-outer"
+    :class="{ 'agent-chat__composer-outer--bounded': props.narrowMaxWidth }"
+  >
+    <div class="composer-card" :class="{ 'composer-card--pill': props.narrowMaxWidth }">
       <Textarea v-model="inputText" :disabled="sending" @send="onSend" />
       <div class="composer-card__divider" />
 
@@ -121,12 +126,27 @@ function onModelPick(profileId: number) {
   flex-shrink: 0;
 }
 
+.agent-chat__composer-outer--bounded {
+  max-width: 800px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+
 .composer-card {
   background: #fff;
   border: 1px solid #e8e8e8;
   border-radius: 14px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   overflow: hidden;
+}
+
+.composer-card--pill {
+  border-radius: 22px;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 16px rgba(0, 0, 0, 0.06);
 }
 
 .composer-card__divider {
