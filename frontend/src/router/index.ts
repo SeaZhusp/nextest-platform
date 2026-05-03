@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AgentLayout from '@/layouts/agent/index.vue'
+import AdminLayout from '@/layouts/admin/index.vue'
 
 const routes = [
   {
@@ -14,18 +15,28 @@ const routes = [
     component: () => import('@/views/register/index.vue'),
     meta: { title: '注册', showInMenu: false }
   },
-  // 后台管理路由（requiresAuth：登录即可；meta.role 与 localStorage user_info.user_type 一致）
+  // 管理后台（独立前缀 /admin，使用 AdminLayout；meta.role 与 user_info.user_type 一致）
+  {
+    path: '/admin',
+    component: AdminLayout,
+    redirect: '/admin/users',
+    meta: { requiresAuth: true, role: 'admin' },
+    children: [
+      {
+        path: 'users',
+        name: 'admin-users',
+        component: () => import('@/views/system/users/index.vue'),
+        meta: { title: '用户管理', icon: 'UserOutlined', showInMenu: true }
+      }
+    ]
+  },
+  // 业务前台（AgentLayout）
   {
     path: '/',
     component: AgentLayout,
+    redirect: '/agent',
     meta: { requiresAuth: true },
     children: [
-      {
-        path: '',
-        name: 'dashboard',
-        component: () => import('@/views/dashboard/index.vue'),
-        meta: { title: '首页', icon: 'DashboardOutlined', showInMenu: true }
-      },
       {
         path: 'agent',
         name: 'agent',
@@ -33,69 +44,16 @@ const routes = [
         meta: { title: '测试助手', icon: 'RobotOutlined', showInMenu: false }
       },
       {
-        path: 'hub/test-cases',
-        name: 'hub-test-cases',
-        component: () => import('@/views/hub/ComingSoon.vue'),
-        meta: { title: '测试用例', icon: 'FileTextOutlined', showInMenu: true }
-      },
-      {
-        path: 'hub/ui-test',
-        name: 'hub-ui-test',
-        component: () => import('@/views/hub/ComingSoon.vue'),
-        meta: { title: 'UI测试', icon: 'DesktopOutlined', showInMenu: true }
-      },
-      {
-        path: 'hub/api-test',
-        name: 'hub-api-test',
-        component: () => import('@/views/hub/ComingSoon.vue'),
-        meta: { title: '接口测试', icon: 'ApiOutlined', showInMenu: true }
-      },
-      {
-        path: 'hub/perf-test',
-        name: 'hub-perf-test',
-        component: () => import('@/views/hub/ComingSoon.vue'),
-        meta: { title: '性能测试', icon: 'ThunderboltOutlined', showInMenu: true }
-      },
-      {
         path: 'agent-executions',
         name: 'agent-executions',
         component: () => import('@/views/agent-executions/index.vue'),
-        meta: {
-          title: '执行看板',
-          icon: 'DashboardOutlined',
-          showInMenu: false,
-          activeMenu: '/agent'
-        }
+        meta: { title: '执行看板', icon: 'DashboardOutlined', showInMenu: false }
       },
       {
         path: '/llm',
         name: 'llm',
         component: () => import('@/views/llm/index.vue'),
         meta: { title: '模型配置', showInMenu: false }
-      },
-      {
-        path: 'system',
-        name: 'system',
-        component: () => import('@/layouts/components/RouterOutlet.vue'),
-        meta: {
-          title: '系统管理',
-          icon: 'SettingOutlined',
-          showInMenu: true,
-          role: 'admin'
-        },
-        children: [
-          {
-            path: 'users',
-            name: 'users',
-            component: () => import('@/views/system/users/index.vue'),
-            meta: {
-              title: '用户管理',
-              icon: 'UserOutlined',
-              showInMenu: true,
-              role: 'admin'
-            }
-          }
-        ]
       }
     ]
   }

@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { LogoutOutlined, CloudOutlined, DownOutlined } from '@ant-design/icons-vue'
+import {
+  LogoutOutlined,
+  CloudOutlined,
+  DownOutlined,
+  ControlOutlined,
+} from '@ant-design/icons-vue'
 import type { AuthUserInfo } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
 import { AGENT_SIDEBAR_NEW_SESSION } from '@/constants/agentSidebarBridge'
@@ -45,6 +50,8 @@ const avatarLetter = computed(() => {
   return first || '?'
 })
 
+const isAdmin = computed(() => props.currentUser?.user_type === 'admin')
+
 const userMenuVisible = ref(false)
 
 async function handleLogout() {
@@ -56,6 +63,11 @@ async function handleLogout() {
 function goLlmProfiles() {
   userMenuVisible.value = false
   void router.push('/settings/llm-profiles')
+}
+
+function goAdminConsole() {
+  userMenuVisible.value = false
+  void router.push('/admin/users')
 }
 
 async function afterNavigateDispatch(fn: () => void) {
@@ -113,6 +125,11 @@ async function goNewSession() {
 
           <template #overlay>
             <a-menu>
+              <a-menu-item v-if="isAdmin" key="admin-console" @click="goAdminConsole">
+                <ControlOutlined />
+                管理后台
+              </a-menu-item>
+              <a-menu-divider v-if="isAdmin" />
               <a-menu-item key="llm-profiles" @click="goLlmProfiles">
                 <CloudOutlined />
                 基本信息
