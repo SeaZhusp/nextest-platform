@@ -25,7 +25,7 @@ const routes = [
       {
         path: 'users',
         name: 'admin-users',
-        component: () => import('@/views/system/users/index.vue'),
+        component: () => import('@/views/admin/users/index.vue'),
         meta: { title: '用户管理', icon: 'UserOutlined', showInMenu: true }
       }
     ]
