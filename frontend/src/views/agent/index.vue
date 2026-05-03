@@ -1061,8 +1061,6 @@ onUnmounted(() => {
   gap: 0;
   min-height: 0;
   overflow: hidden;
-  border-radius: 8px;
-  border: 1px solid #e8e8e8;
   background: #fff;
 }
 

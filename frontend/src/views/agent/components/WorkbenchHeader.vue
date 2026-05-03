@@ -62,9 +62,7 @@ const defaultSubtitle = '内容由智能 AI 生成，请仔细甄别'
   gap: 12px;
   padding: 10px 16px;
   background: #fff;
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
-  margin-bottom: 8px;
+  border-bottom: 1px solid #e8e8e8;
   flex-shrink: 0;
 }
 
