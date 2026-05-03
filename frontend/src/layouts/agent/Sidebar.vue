@@ -22,16 +22,8 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const emit = defineEmits<{
-  toggleCollapsed: []
-}>()
-
 const router = useRouter()
 const authStore = useAuthStore()
-
-function emitToggleCollapsed() {
-  emit('toggleCollapsed')
-}
 
 const displayName = computed(() => {
   const u = props.currentUser
@@ -103,7 +95,7 @@ async function goNewSession() {
     }"
   >
     <div class="sidebar-inner">
-      <Logo @toggle-collapsed="emitToggleCollapsed" />
+      <Logo />
 
       <NewSession @new-session="goNewSession" />
 

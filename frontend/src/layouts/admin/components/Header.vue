@@ -4,12 +4,9 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  BellOutlined,
-  UserOutlined,
+  RobotOutlined,
   LogoutOutlined,
-  SettingOutlined,
   DownOutlined,
-  CloudOutlined,
 } from '@ant-design/icons-vue'
 import type { AuthUserInfo } from '@/api/auth'
 
@@ -64,9 +61,9 @@ function handleLogout() {
   userMenuVisible.value = false
 }
 
-function goLlmProfiles() {
+function goAgentWorkbench() {
   userMenuVisible.value = false
-  void router.push('/settings/llm-profiles')
+  void router.push('/agent')
 }
 
 </script>
@@ -99,18 +96,6 @@ function goLlmProfiles() {
 
       <!-- 右侧：用户信息和操作 -->
       <div class="header-right">
-        <!-- 通知 -->
-        <a-badge :count="5" :offset="[10, 0]">
-          <a-button type="text" class="action-btn">
-            <BellOutlined />
-          </a-button>
-        </a-badge>
-
-        <!-- 设置 -->
-        <a-button type="text" class="action-btn">
-          <SettingOutlined />
-        </a-button>
-
         <!-- 用户菜单 -->
         <a-dropdown 
           v-model:open="userMenuVisible"
@@ -125,17 +110,9 @@ function goLlmProfiles() {
           
           <template #overlay>
             <a-menu>
-              <a-menu-item key="profile">
-                <UserOutlined />
-                个人资料
-              </a-menu-item>
-              <a-menu-item key="llm-profiles" @click="goLlmProfiles">
-                <CloudOutlined />
-                模型配置
-              </a-menu-item>
-              <a-menu-item key="settings">
-                <SettingOutlined />
-                系统设置
+              <a-menu-item key="agent" @click="goAgentWorkbench">
+                <RobotOutlined />
+                测试助手
               </a-menu-item>
               <a-menu-divider />
               <a-menu-item key="logout" @click="handleLogout">
@@ -203,19 +180,6 @@ function goLlmProfiles() {
   display: flex;
   align-items: center;
   gap: 16px;
-}
-
-.action-btn {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  
-  &:hover {
-    background: #f5f5f5;
-  }
 }
 
 .user-info {

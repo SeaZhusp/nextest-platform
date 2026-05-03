@@ -175,7 +175,6 @@ provide('addTab', addTab)
       :collapsed="collapsed"
       :selectedKeys="selectedKeys"
       @menu-click="handleMenuClick"
-      @toggle-collapsed="toggleCollapsed"
     />
     
     <!-- 主内容区域 -->
@@ -193,7 +192,7 @@ provide('addTab', addTab)
       <div 
         v-if="tabs.length > 0"
         :style="{ 
-          marginLeft: collapsed ? '80px' : '220px',
+          marginLeft: collapsed ? '80px' : '260px',
           transition: 'margin-left 0.2s',
           marginTop: '64px',
           position: 'fixed',
@@ -218,7 +217,7 @@ provide('addTab', addTab)
       <!-- 页面内容 -->
       <a-layout-content 
         :style="{ 
-          marginLeft: collapsed ? '80px' : '220px',
+          marginLeft: collapsed ? '80px' : '260px',
           transition: 'margin-left 0.2s',
           padding: '12px',
           background: '#f7fafc',

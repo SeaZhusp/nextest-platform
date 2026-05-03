@@ -2,6 +2,16 @@
 import { ref } from 'vue'
 import { AppstoreOutlined, MenuFoldOutlined } from '@ant-design/icons-vue'
 
+withDefaults(
+  defineProps<{
+    /** 是否显示侧栏收起按钮（管理后台顶栏已有折叠入口，一般为 false） */
+    showCollapseTrigger?: boolean
+  }>(),
+  {
+    showCollapseTrigger: false,
+  },
+)
+
 const emit = defineEmits<{
   toggleCollapsed: []
 }>()
@@ -38,6 +48,7 @@ function onLogoError() {
         </div>
       </div>
       <a-button
+        v-if="showCollapseTrigger"
         type="text"
         class="sidebar-fold-btn"
         aria-label="收起侧边栏"

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { MenuUnfoldOutlined } from '@ant-design/icons-vue'
+import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons-vue'
 import Sidebar from './Sidebar.vue'
 import { useAuthStore } from '@/stores/auth'
 
@@ -32,11 +32,19 @@ onUnmounted(() => {
 
 <template>
   <a-layout style="min-height: 100vh">
-    <Sidebar
-      :collapsed="collapsed"
-      :current-user="currentUser"
-      @toggle-collapsed="toggleCollapsed"
-    />
+    <Sidebar :collapsed="collapsed" :current-user="currentUser" />
+
+    <!-- 侧栏展开时：收起按钮放在主内容区左缘（与顶栏「展开」对称） -->
+    <a-button
+      v-show="!collapsed"
+      type="text"
+      class="layout-sidebar-fold"
+      aria-label="收起侧边栏"
+      title="收起侧边栏"
+      @click="toggleCollapsed"
+    >
+      <MenuFoldOutlined />
+    </a-button>
 
     <a-button
       v-show="collapsed"
@@ -64,6 +72,33 @@ onUnmounted(() => {
 </template>
 
 <style lang="scss" scoped>
+.layout-sidebar-fold {
+  position: fixed;
+  left: 260px;
+  top: 10px;
+  z-index: 1001;
+  width: 40px;
+  height: 40px;
+  padding: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.65) !important;
+  background: #fff !important;
+  border: 1px solid #f0f0f0 !important;
+  border-right: none !important;
+  border-radius: 8px 0 0 8px !important;
+  box-shadow: -1px 1px 4px rgba(0, 0, 0, 0.06);
+  transform: translateX(-100%);
+
+  &:hover {
+    color: #1890ff !important;
+    background: #f5f5f5 !important;
+    border-color: #f0f0f0 !important;
+  }
+}
+
 .layout-sidebar-expand {
   position: fixed;
   left: 0;

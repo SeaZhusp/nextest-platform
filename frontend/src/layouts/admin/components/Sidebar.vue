@@ -30,7 +30,6 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   menuClick: [info: { key: string }]
-  toggleCollapsed: []
 }>()
 
 const router = useRouter()
@@ -171,7 +170,7 @@ function handleMenuClick(info: { key: string }) {
 <template>
   <a-layout-sider
     :collapsed="collapsed"
-    :width="220"
+    :width="260"
     :collapsedWidth="80"
     class="sidebar"
     :style="{
@@ -182,7 +181,7 @@ function handleMenuClick(info: { key: string }) {
       zIndex: 999
     }"
   >
-    <Logo class="sidebar-logo-wrap" @toggle-collapsed="emit('toggleCollapsed')" />
+    <Logo class="sidebar-logo-wrap" />
 
     <!-- 菜单区域 -->
     <a-menu
@@ -208,8 +207,8 @@ function handleMenuClick(info: { key: string }) {
           </a-menu-item>
         </a-sub-menu>
         
-        <!-- 没有子菜单的情况 -->
-        <a-menu-item v-else :key="'leaf-' + item.key">
+        <!-- 没有子菜单的情况（key 须为真实 path，供 @click 导航；与 sub- 前缀区分避免与 v-if 分支 key 冲突） -->
+        <a-menu-item v-else :key="item.key">
           <component :is="item.icon" v-if="item.icon" />
           <span>{{ item.label }}</span>
         </a-menu-item>
