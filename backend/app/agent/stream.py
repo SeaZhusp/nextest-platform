@@ -153,6 +153,7 @@ async def iter_conversation_chat_sse(
                     db,
                     conversation_id=resolved.row.id,
                     text=asst,
+                    skill_id=skill_id,
                     execution=exec_result.model_dump(),
                     plan_steps=snapshot_plan_steps(),
                 )
@@ -263,6 +264,7 @@ async def iter_conversation_chat_sse(
                 db,
                 conversation_id=resolved.row.id,
                 text=full,
+                skill_id=skill_id,
                 execution=exec_result.model_dump(),
                 plan_steps=snapshot_plan_steps(),
             )

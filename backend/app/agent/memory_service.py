@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Literal, cast
+from typing import Any, Literal, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.context import build_test_case_gen_llm_messages
+from app.agent.skills.config import load_skill_config
 from app.core.config import settings
 from app.core.exceptions import NotFoundException, ValidationException
 from app.models.conversation import Conversation, ConversationMessage
@@ -119,6 +120,7 @@ async def save_assistant_message(
     *,
     conversation_id: int,
     text: str,
+    skill_id: str,
     execution: dict | None = None,
     plan_steps: list[dict] | None = None,
 ) -> None:
@@ -126,9 +128,9 @@ async def save_assistant_message(
     try:
         parsed_cases = json.loads(text)
         if isinstance(parsed_cases, list):
-            content_json["raw_payload"] = _build_document_payload_from_testcases(parsed_cases)
+            content_json["raw_payload"] = _build_document_payload_from_testcases(parsed_cases, skill_id=skill_id)
     except Exception:
-        content_json["raw_payload"] = _build_document_payload_from_testcases([])
+        content_json["raw_payload"] = _build_document_payload_from_testcases([], skill_id=skill_id)
     if execution is not None:
         content_json["execution"] = execution
     if plan_steps is not None:
@@ -149,7 +151,53 @@ def assistant_persist_text_from_result(*, llm_raw_output: str | None, test_cases
     return json.dumps(test_cases_dump, ensure_ascii=False)
 
 
-def _build_document_payload_from_testcases(test_cases_dump: list[dict]) -> dict:
+def _render_mode_set(skill_id: str) -> set[str]:
+    """与 skills/<id>/config.json 的 render_modes 对齐；未知技能时仅 table。"""
+    try:
+        cfg = load_skill_config(skill_id)
+        modes = {str(m).strip() for m in cfg.render_modes if str(m).strip()}
+        return modes
+    # 这里如果出异常，直接抛出异常
+    except (FileNotFoundError, OSError, TypeError, ValueError) as e:
+        raise e
+  
+
+
+def _md_table_cell(value: object) -> str:
+    """管道表单元格：换行用 <br>，避免 | 与换行破坏列对齐。"""
+    s = str(value if value is not None else "")
+    s = s.replace("\r\n", "\n").replace("\r", "\n")
+    s = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    s = s.replace("\n", "<br>")
+    s = s.replace("|", "&#124;")
+    return s
+
+
+def _build_markdown_report_table(rows: list[dict]) -> str:
+    headers = ["编号", "模块", "标题", "前置条件", "步骤", "预期", "优先级"]
+    keys = ["case_no", "module", "title", "preconditions", "steps", "expected", "priority"]
+    lines = ["# 测试用例报告", "", "|" + "|".join(headers) + "|", "|" + "|".join(["---"] * len(headers)) + "|"]
+    for r in rows:
+        cells = [_md_table_cell(r.get(k)) for k in keys]
+        lines.append("|" + "|".join(cells) + "|")
+    return "\n".join(lines)
+
+
+def _build_mindmap_nodes(rows: list[dict]) -> list[dict]:
+    """按模块分组，与前端 buildMindmapFromRows 语义一致。"""
+    groups: dict[str, dict] = {}
+    for r in rows:
+        mod = str(r.get("module") or "").strip() or "未分组"
+        gkey = f"module_{mod}"
+        if mod not in groups:
+            groups[mod] = {"key": gkey, "title": mod, "children": []}
+        case_key = str(r.get("key") or r.get("case_no") or "")
+        title = f"{str(r.get('case_no') or '').strip()} {str(r.get('title') or '').strip()}".strip()
+        groups[mod]["children"].append({"key": f"case_{case_key}", "title": title, "children": []})
+    return list(groups.values())
+
+
+def _build_document_payload_from_testcases(test_cases_dump: list[dict], *, skill_id: str) -> dict:
     rows: list[dict] = []
     for i, item in enumerate(test_cases_dump):
         row = item if isinstance(item, dict) else {}
@@ -165,21 +213,29 @@ def _build_document_payload_from_testcases(test_cases_dump: list[dict]) -> dict:
                 "priority": str(row.get("priority") or "P2"),
             }
         )
-    markdown_lines = ["# 测试用例报告", "", "| 编号 | 模块 | 标题 | 优先级 |", "| --- | --- | --- | --- |"]
-    for r in rows:
-        markdown_lines.append(
-            f"| {r['case_no']} | {r['module']} | {r['title']} | {r['priority']} |"
-        )
-    return {
-        "tableRows": rows,
-        "markdown": "\n".join(markdown_lines),
-        "mindmap": [],
+    modes = _render_mode_set(skill_id)
+    payload: dict[str, object] = {
         "sync": {
             "revision": 0,
             "lastEditedBy": "system",
             "lastEditedAt": 0,
         },
     }
+    if "table" in modes:
+        payload["table"] = rows
+    if "markdown" in modes:
+        payload["markdown"] = _build_markdown_report_table(rows)
+    if "mindmap" in modes:
+        payload["mindmap"] = _build_mindmap_nodes(rows)
+    return payload
+
+
+def _document_table_rows_from_dict(d: object) -> list[Any] | None:
+    """读取文档片段中的表格行（字段 `table`）。"""
+    if not isinstance(d, dict):
+        return None
+    t = d.get("table")
+    return t if isinstance(t, list) else None
 
 
 def assistant_baseline_content_from_content_json(content: dict[str, object]) -> str:
@@ -188,7 +244,7 @@ def assistant_baseline_content_from_content_json(content: dict[str, object]) -> 
         md = edited_payload.get("markdown")
         if isinstance(md, str) and md.strip():
             return md
-        rows = edited_payload.get("tableRows")
+        rows = _document_table_rows_from_dict(edited_payload)
         if isinstance(rows, list):
             return json.dumps(rows, ensure_ascii=False)
 
@@ -197,7 +253,7 @@ def assistant_baseline_content_from_content_json(content: dict[str, object]) -> 
         md = raw_payload.get("markdown")
         if isinstance(md, str) and md.strip():
             return md
-        rows = raw_payload.get("tableRows")
+        rows = _document_table_rows_from_dict(raw_payload)
         if isinstance(rows, list):
             return json.dumps(rows, ensure_ascii=False)
 

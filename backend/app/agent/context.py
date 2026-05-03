@@ -48,7 +48,7 @@ def assistant_text_from_content_json(content: dict[str, Any]) -> str:
         md = edited_payload.get("markdown")
         if isinstance(md, str) and md.strip():
             return md
-        rows = edited_payload.get("tableRows")
+        rows = edited_payload.get("table")
         if isinstance(rows, list):
             return json.dumps(rows, ensure_ascii=False)
 
@@ -57,7 +57,7 @@ def assistant_text_from_content_json(content: dict[str, Any]) -> str:
         md = raw_payload.get("markdown")
         if isinstance(md, str) and md.strip():
             return md
-        rows = raw_payload.get("tableRows")
+        rows = raw_payload.get("table")
         if isinstance(rows, list):
             return json.dumps(rows, ensure_ascii=False)
 

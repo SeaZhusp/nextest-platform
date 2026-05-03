@@ -79,6 +79,7 @@ async def process_agent_chat(
         db,
         conversation_id=resolved.row.id,
         text=asst_text,
+        skill_id=skill_id,
         execution=exec_result.model_dump(),
     )
     await db.commit()

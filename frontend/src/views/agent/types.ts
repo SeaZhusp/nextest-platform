@@ -42,7 +42,8 @@ export interface DocumentSync {
 }
 
 export interface DocumentModel {
-  tableRows: TestCaseRow[]
+  /** 与后端 raw_payload / edited_payload 字段名 `table` 对齐 */
+  table: TestCaseRow[]
   markdown: string
   mindmap: MindmapNode[]
   sync: DocumentSync

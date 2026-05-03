@@ -64,8 +64,8 @@ function onExportExcel() {
 }
 
 function onAddRow() {
-  const idx = documentModel.value.tableRows.length + 1
-  documentModel.value.tableRows.push({
+  const idx = documentModel.value.table.length + 1
+  documentModel.value.table.push({
     key: `row_${Date.now()}`,
     case_no: `TC-${idx}`,
     module: '',
@@ -120,7 +120,7 @@ function onAddRow() {
         </template>
         <div class="agent-output__pane agent-output__pane--table">
           <TableEditor
-            v-model:rows="documentModel.tableRows"
+            v-model:rows="documentModel.table"
             :columns="tableColumns"
             @edited="markEdited('table')"
           />

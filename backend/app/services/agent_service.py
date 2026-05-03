@@ -17,7 +17,7 @@ ExportSource = Literal["edited", "raw"]
 
 
 def _normalize_rows_from_payload(payload: dict) -> list[dict[str, str]]:
-    rows_raw = payload.get("tableRows")
+    rows_raw = payload.get("table")
     if not isinstance(rows_raw, list):
         return []
     rows: list[dict[str, str]] = []

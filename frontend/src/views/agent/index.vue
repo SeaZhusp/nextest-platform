@@ -134,7 +134,7 @@ function rowsFromTestCases(items: TestCaseItem[]) {
   }))
 }
 
-function buildMarkdownFromRows(rows: DocumentModel['tableRows']): string {
+function buildMarkdownFromRows(rows: DocumentModel['table']): string {
   if (!rows.length) {
     return '# 测试用例报告\n\n暂无用例。'
   }
@@ -145,7 +145,7 @@ function buildMarkdownFromRows(rows: DocumentModel['tableRows']): string {
   return lines.join('\n')
 }
 
-function buildMindmapFromRows(rows: DocumentModel['tableRows']): MindmapNode[] {
+function buildMindmapFromRows(rows: DocumentModel['table']): MindmapNode[] {
   const map = new Map<string, MindmapNode>()
   for (const row of rows) {
     const group = row.module || '未分组'
@@ -163,7 +163,7 @@ function buildMindmapFromRows(rows: DocumentModel['tableRows']): MindmapNode[] {
 
 function normalizeDocumentPayload(payload: unknown): DocumentModel {
   const p = payload && typeof payload === 'object' ? (payload as Partial<DocumentModel>) : {}
-  const rawRows = Array.isArray(p.tableRows) ? (p.tableRows as DocumentModel['tableRows']) : []
+  const rawRows = Array.isArray(p.table) ? p.table : []
   const rows = rawRows.map((row) => ({
     ...row,
     preconditions: multilineFieldFromApi(row.preconditions),
@@ -177,11 +177,11 @@ function normalizeDocumentPayload(payload: unknown): DocumentModel {
     lastEditedBy: 'system',
     lastEditedAt: Date.now()
   }
-  return { tableRows: rows, markdown, mindmap, sync }
+  return { table: rows, markdown, mindmap, sync }
 }
 
 const panelDocument = ref<DocumentModel>({
-  tableRows: [],
+  table: [],
   markdown: `# 测试用例报告
 
 在右侧对话中输入需求并发送后，将在此展示 Markdown 报告（可后续接入导出）。`,
@@ -196,7 +196,7 @@ const panelDocument = ref<DocumentModel>({
 let syncGuard = false
 
 watch(
-  () => panelDocument.value.tableRows,
+  () => panelDocument.value.table,
   (rows) => {
     if (syncGuard) return
     if (panelDocument.value.sync.lastEditedBy !== 'table') return
@@ -334,7 +334,7 @@ async function handleSend() {
           sessionId.value = data.session_id
           if (data.test_cases?.length) {
             const rows = rowsFromTestCases(data.test_cases)
-            panelDocument.value.tableRows = rows
+            panelDocument.value.table = rows
             panelDocument.value.markdown = buildMarkdownFromRows(rows)
             panelDocument.value.mindmap = buildMindmapFromRows(rows)
             panelDocument.value.sync.revision += 1
@@ -462,7 +462,7 @@ function resetSessionForSkillSwitch() {
   canRestoreRaw.value = false
   mockMessages.value = []
   panelDocument.value = {
-    tableRows: [],
+    table: [],
     markdown: '# 测试用例报告\n\n暂无数据。',
     mindmap: [],
     sync: {
@@ -674,7 +674,7 @@ function tryHydrateDocumentFromHistory(messages: AgentHistoryMessageOut[]): void
         parsed.every((x) => x && typeof x === 'object')
       ) {
         const rows = rowsFromTestCases(parsed as TestCaseItem[])
-        panelDocument.value.tableRows = rows
+        panelDocument.value.table = rows
         panelDocument.value.markdown = buildMarkdownFromRows(rows)
         panelDocument.value.mindmap = buildMindmapFromRows(rows)
         panelDocument.value.sync.revision = 0
@@ -687,7 +687,7 @@ function tryHydrateDocumentFromHistory(messages: AgentHistoryMessageOut[]): void
       /* 非 JSON 或结构不符 */
     }
   }
-  panelDocument.value.tableRows = []
+  panelDocument.value.table = []
   panelDocument.value.markdown = '# 测试用例报告\n\n暂无数据。'
   panelDocument.value.mindmap = []
   canRestoreRaw.value = false
