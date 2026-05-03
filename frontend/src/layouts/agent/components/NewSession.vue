@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { PlusOutlined } from '@ant-design/icons-vue'
+import { MessageOutlined } from '@ant-design/icons-vue'
 
 const emit = defineEmits<{
   'new-session': []
@@ -12,11 +12,11 @@ const emit = defineEmits<{
       <button
         type="button"
         class="new-session__btn"
-        aria-label="新建会话"
+        aria-label="新建对话"
         @click="emit('new-session')"
       >
-        <PlusOutlined class="new-session__btn-icon" aria-hidden="true" />
-        <span>新建会话</span>
+        <MessageOutlined class="new-session__btn-icon" aria-hidden="true" />
+        <span>新建对话</span>
       </button>
     </div>
   </div>

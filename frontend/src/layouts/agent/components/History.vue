@@ -253,7 +253,7 @@ onUnmounted(() => {
 <template>
   <div class="session-history">
     <div class="session-history__toolbar">
-      <span class="session-history__toolbar-title">会话历史</span>
+      <span class="session-history__toolbar-title">历史对话</span>
       <a-button
         type="text"
         size="small"

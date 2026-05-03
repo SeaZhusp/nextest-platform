@@ -115,7 +115,7 @@ async function goNewSession() {
             <a-menu>
               <a-menu-item key="llm-profiles" @click="goLlmProfiles">
                 <CloudOutlined />
-                模型配置
+                基本信息
               </a-menu-item>
               <a-menu-divider />
               <a-menu-item key="logout" @click="handleLogout">

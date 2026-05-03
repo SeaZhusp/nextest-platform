@@ -475,13 +475,7 @@ function resetSessionForSkillSwitch() {
 
 function handleNewSession() {
   resetSessionForSkillSwitch()
-  let skillHint = ''
-  if (registeredSkills.value.length) {
-    skillHint = ` 已注册技能：${registeredSkills.value.map((s) => s.skill_id).join(', ')}。`
-  } else {
-    skillHint = ' 当前无已注册技能。'
-  }
-  message.info(`已新建会话。${skillHint}`)
+  setLayoutMode('chat-only')
 }
 
 function handleSkillChange(nextSkillId: string) {

@@ -22,7 +22,7 @@ function onLogoError() {
           v-if="!logoFailed"
           key="sidebar-logo-img"
           :src="LOGO_SRC"
-          alt="NextTest"
+          alt="NexTest"
           class="logo-img"
           @error="onLogoError"
         />
@@ -33,7 +33,7 @@ function onLogoError() {
           aria-hidden="true"
         />
         <div class="logo-text">
-          <span class="logo-brand">NextTest</span>
+          <span class="logo-brand">NexTest</span>
           <span class="logo-tagline">下一代测试平台</span>
         </div>
       </div>

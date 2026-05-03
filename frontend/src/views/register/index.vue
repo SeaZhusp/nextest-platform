@@ -50,7 +50,7 @@ async function handleSubmit() {
       password_confirm: form.password_confirm,
     })
     message.success('注册成功')
-    router.push('/')
+    router.push('/agent')
   } catch (e) {
     console.error(e)
   } finally {
@@ -64,7 +64,7 @@ function goLogin() {
 
 onMounted(() => {
   if (authStore.isAuthenticated) {
-    router.push('/')
+    router.push('/agent')
   }
 })
 </script>
@@ -152,7 +152,7 @@ onMounted(() => {
           <a type="link" class="link" @click="goLogin">立即登录</a>
         </p>
 
-        <p class="copyright">© 2026 NextTest. 保留所有权利。</p>
+        <p class="copyright">© 2026 NexTest. 保留所有权利。</p>
       </div>
     </div>
   </div>

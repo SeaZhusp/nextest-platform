@@ -146,7 +146,7 @@ router.beforeEach((to, _from, next) => {
   }
 
   if ((to.path === '/login' || to.path === '/register') && token && userInfoRaw) {
-    next('/')
+    next('/agent')
     return
   }
 
