@@ -30,7 +30,9 @@ function setStreamBoxRef(messageId: string, el: unknown) {
 
 function scrollStreamBoxesToBottom() {
   for (const m of props.messages) {
-    if (!m.streaming) continue
+    if (m.role !== 'assistant') continue
+    const hasStream = !!(m.streamContent && m.streamContent.length)
+    if (!m.streaming && !hasStream) continue
     const el = streamBoxRefs.value[m.id]
     if (!el) continue
     el.scrollTop = el.scrollHeight
@@ -115,11 +117,15 @@ watch(
             </div>
           </div>
           <div
-            v-if="m.role === 'assistant' && m.streaming && m.streamContent"
+            v-if="
+              m.role === 'assistant' &&
+              (m.streaming || (m.streamContent != null && m.streamContent.length > 0))
+            "
             :ref="(el) => setStreamBoxRef(m.id, el)"
             class="agent-msg__stream"
           >
-            {{ m.streamContent }}
+            <template v-if="m.streamContent && m.streamContent.length">{{ m.streamContent }}</template>
+            <span v-else-if="m.streaming" class="agent-msg__stream-placeholder">等待模型输出…</span>
           </div>
         </div>
       </div>
@@ -280,6 +286,11 @@ watch(
 
 .agent-msg__stream::-webkit-scrollbar {
   display: none;
+}
+
+.agent-msg__stream-placeholder {
+  color: #8c8c8c;
+  font-size: 12px;
 }
 
 @keyframes agent-spin {

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundException, ValidationException
 from app.repositories.conversation_repository import conversation_repository
+from app.schemas.testcase import multiline_field_from_llm
 
 
 ExportSource = Literal["edited", "raw"]
@@ -27,9 +28,9 @@ def _normalize_rows_from_payload(payload: dict) -> list[dict[str, str]]:
                 "case_no": str(r.get("case_no") or f"TC-{i + 1}"),
                 "module": str(r.get("module") or ""),
                 "title": str(r.get("title") or ""),
-                "preconditions": str(r.get("preconditions") or ""),
-                "steps": str(r.get("steps") or ""),
-                "expected": str(r.get("expected") or ""),
+                "preconditions": multiline_field_from_llm(r.get("preconditions")),
+                "steps": multiline_field_from_llm(r.get("steps")),
+                "expected": multiline_field_from_llm(r.get("expected")),
                 "priority": str(r.get("priority") or "P2"),
             }
         )
@@ -56,9 +57,9 @@ def _rows_from_content_json(content_json: dict, source: ExportSource) -> list[di
                             "case_no": str(r.get("case_no") or f"TC-{i + 1}"),
                             "module": str(r.get("module") or ""),
                             "title": str(r.get("title") or ""),
-                            "preconditions": str(r.get("preconditions") or ""),
-                            "steps": str(r.get("steps") or ""),
-                            "expected": str(r.get("expected") or ""),
+                            "preconditions": multiline_field_from_llm(r.get("preconditions")),
+                            "steps": multiline_field_from_llm(r.get("steps")),
+                            "expected": multiline_field_from_llm(r.get("expected")),
                             "priority": str(r.get("priority") or "P2"),
                         }
                     )

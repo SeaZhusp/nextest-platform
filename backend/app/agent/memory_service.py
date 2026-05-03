@@ -23,6 +23,7 @@ from app.schemas.agent import (
     AgentSessionLatestEditedOutputRequest,
     TextPart,
 )
+from app.schemas.testcase import multiline_field_from_llm
 
 
 @dataclass
@@ -158,9 +159,9 @@ def _build_document_payload_from_testcases(test_cases_dump: list[dict]) -> dict:
                 "case_no": str(row.get("case_no") or ""),
                 "module": str(row.get("module") or ""),
                 "title": str(row.get("title") or ""),
-                "preconditions": str(row.get("preconditions") or ""),
-                "steps": str(row.get("steps") or ""),
-                "expected": str(row.get("expected") or ""),
+                "preconditions": multiline_field_from_llm(row.get("preconditions")),
+                "steps": multiline_field_from_llm(row.get("steps")),
+                "expected": multiline_field_from_llm(row.get("expected")),
                 "priority": str(row.get("priority") or "P2"),
             }
         )

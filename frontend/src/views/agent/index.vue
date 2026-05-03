@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import {
   AGENT_ACTIVE_SESSION_CHANGED,
   AGENT_SIDEBAR_NEW_SESSION,
@@ -26,7 +26,7 @@ import {
   type AgentStreamPlanPayload,
   type AgentStreamStepPayload,
 } from '@/schemas/agent'
-import type { TestCaseItem } from '@/schemas/testcase'
+import { multilineFieldFromApi, type TestCaseItem } from '@/schemas/testcase'
 import type { UserLlmProfileOut } from '@/schemas/userLlmProfile'
 import OutputPanel from './components/OutputPanel.vue'
 import AgentChatPanel from './components/chat-panel/index.vue'
@@ -127,9 +127,9 @@ function rowsFromTestCases(items: TestCaseItem[]) {
     case_no: c.case_no,
     module: c.module,
     title: c.title,
-    preconditions: c.preconditions ?? '',
-    steps: c.steps ?? '',
-    expected: c.expected ?? '',
+    preconditions: multilineFieldFromApi(c.preconditions ?? ''),
+    steps: multilineFieldFromApi(c.steps as unknown),
+    expected: multilineFieldFromApi(c.expected ?? ''),
     priority: c.priority ?? 'P2'
   }))
 }
@@ -163,7 +163,13 @@ function buildMindmapFromRows(rows: DocumentModel['tableRows']): MindmapNode[] {
 
 function normalizeDocumentPayload(payload: unknown): DocumentModel {
   const p = payload && typeof payload === 'object' ? (payload as Partial<DocumentModel>) : {}
-  const rows = Array.isArray(p.tableRows) ? (p.tableRows as DocumentModel['tableRows']) : []
+  const rawRows = Array.isArray(p.tableRows) ? (p.tableRows as DocumentModel['tableRows']) : []
+  const rows = rawRows.map((row) => ({
+    ...row,
+    preconditions: multilineFieldFromApi(row.preconditions),
+    steps: multilineFieldFromApi(row.steps),
+    expected: multilineFieldFromApi(row.expected)
+  }))
   const markdown = typeof p.markdown === 'string' ? p.markdown : buildMarkdownFromRows(rows)
   const mindmap = Array.isArray(p.mindmap) ? (p.mindmap as MindmapNode[]) : buildMindmapFromRows(rows)
   const sync = p.sync ?? {
@@ -269,8 +275,10 @@ async function handleSend() {
     planSteps: []
   })
 
-  sending.value = true
+  /* 须在 sending/disabled 之前清空，否则 a-textarea 在禁用态下可能不同步 v-model */
   inputText.value = ''
+  await nextTick()
+  sending.value = true
   const abortController = new AbortController()
   activeStreamAbort.value = abortController
 
@@ -335,11 +343,15 @@ async function handleSend() {
             canRestoreRaw.value = true
             outputTab.value = defaultRender.value
           }
+          /* 生成结束后展开输出区（从「仅对话」切回双栏，便于直接预览表格/Markdown 等） */
+          if (layoutMode.value === 'chat-only') {
+            setLayoutMode('split')
+          }
           const msg = mockMessages.value[assistIdx]
           if (msg) {
             msg.content = '执行完成，结果请查看输出区'
             msg.streaming = false
-            msg.streamContent = ''
+            /* 保留 streamContent，便于消息区内持续展示模型原始流式全文；历史会话从 content_json.text 对齐 */
             msg.currentStep = {
               stepId: 'done',
               label: '已完成',
@@ -562,6 +574,12 @@ function assistantBriefFromApiMessage(_content: Record<string, unknown>): string
   return '执行完成，结果请查看输出区'
 }
 
+/** 助手消息持久化的模型原文（流式路径为拼接后的全文），用于消息区流式展示块 */
+function assistantStreamTextFromApiContent(contentJson: Record<string, unknown>): string {
+  const raw = contentJson.text
+  return typeof raw === 'string' ? raw : ''
+}
+
 const STEP_ORDER: Record<string, number> = {
   plan: 0,
   call_skill: 1,
@@ -733,7 +751,8 @@ async function onSelectHistorySession(payload: { sessionId: string; skillId: str
           m.role === 'user'
             ? userTextFromApiMessage(contentJson)
             : assistantBriefFromApiMessage(contentJson),
-        streamContent: '',
+        streamContent:
+          m.role === 'assistant' ? assistantStreamTextFromApiContent(contentJson) : '',
         streaming: false,
         currentStep,
         planSteps

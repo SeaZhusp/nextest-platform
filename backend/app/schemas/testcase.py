@@ -1,8 +1,47 @@
 """测试用例结构（阶段一 2.2.2 / F1.6）。"""
 
+import ast
+import json
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+def multiline_field_from_llm(v: Any, *, sep: str = "\n") -> str:
+    """
+    将模型/前端可能传入的 list、JSON 数组字符串、Python 字面量列表（单引号）
+    统一为单元格内多行文本（默认换行连接）。
+    避免出现 str(list) 形式的 `['1. …', '2. …']` 占满一格。
+    """
+    if v is None:
+        return ""
+    if isinstance(v, list):
+        return sep.join(str(x).strip() for x in v if str(x).strip())
+    if not isinstance(v, str):
+        return str(v).strip()
+    s = v.strip()
+    if not s:
+        return ""
+    if s.startswith("["):
+        try:
+            parsed = json.loads(s)
+            if isinstance(parsed, list):
+                return sep.join(str(x).strip() for x in parsed if str(x).strip())
+        except json.JSONDecodeError:
+            pass
+        try:
+            parsed, _ = json.JSONDecoder().raw_decode(s, 0)
+            if isinstance(parsed, list):
+                return sep.join(str(x).strip() for x in parsed if str(x).strip())
+        except json.JSONDecodeError:
+            pass
+        try:
+            parsed = ast.literal_eval(s)
+            if isinstance(parsed, list):
+                return sep.join(str(x).strip() for x in parsed if str(x).strip())
+        except (ValueError, SyntaxError, TypeError):
+            pass
+    return s
 
 
 class TestCaseItem(BaseModel):
@@ -20,12 +59,6 @@ class TestCaseItem(BaseModel):
     expected: str = ""
     priority: str = Field(default="P2", description="如 P0 / P1 / P2")
 
-    @staticmethod
-    def _join_if_list(v: Any, *, sep: str = "\n") -> str:
-        if isinstance(v, list):
-            return sep.join(str(x).strip() for x in v if str(x).strip())
-        return str(v) if v is not None else ""
-
     @model_validator(mode="before")
     @classmethod
     def normalize_llm_shape(cls, data: Any) -> Any:
@@ -42,10 +75,9 @@ class TestCaseItem(BaseModel):
         elif isinstance(cid, (int, float)):
             d["case_no"] = str(int(cid)) if float(cid) == int(cid) else str(cid)
 
-        if isinstance(d.get("steps"), list):
-            d["steps"] = cls._join_if_list(d["steps"])
-        if isinstance(d.get("expected"), list):
-            d["expected"] = cls._join_if_list(d["expected"])
+        d["steps"] = multiline_field_from_llm(d.get("steps"))
+        d["expected"] = multiline_field_from_llm(d.get("expected"))
+        d["preconditions"] = multiline_field_from_llm(d.get("preconditions"))
 
         pr = d.get("priority")
         if pr is not None and not isinstance(pr, str):
