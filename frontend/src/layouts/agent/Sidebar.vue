@@ -6,7 +6,7 @@ import type { AuthUserInfo } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
 import { AGENT_SIDEBAR_NEW_SESSION } from '@/constants/agentSidebarBridge'
 import History from './components/History.vue'
-import Logo from './components/Logo.vue'
+import Logo from '../components/Logo.vue'
 import Menu from './components/Menu.vue'
 import NewSession from './components/NewSession.vue'
 

@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Layout from '@/layouts/index.vue'
+import AgentLayout from '@/layouts/agent/index.vue'
 
 const routes = [
   {
@@ -17,7 +17,7 @@ const routes = [
   // 后台管理路由（requiresAuth：登录即可；meta.role 与 localStorage user_info.user_type 一致）
   {
     path: '/',
-    component: Layout,
+    component: AgentLayout,
     meta: { requiresAuth: true },
     children: [
       {
@@ -68,9 +68,9 @@ const routes = [
         }
       },
       {
-        path: 'settings/llm-profiles',
-        name: 'settings-llm-profiles',
-        component: () => import('@/views/settings/llm-profiles/index.vue'),
+        path: '/llm',
+        name: 'llm',
+        component: () => import('@/views/llm/index.vue'),
         meta: { title: '模型配置', showInMenu: false }
       },
       {

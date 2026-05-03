@@ -233,7 +233,7 @@ function confirmDelete(row: UserLlmProfileOut) {
       <div>
         <h1 class="llm-page__title">模型配置</h1>
         <p class="llm-page__desc">
-          管理自备大模型（OpenAI 兼容接口）。平台不提供内置模型；卡片中可测试连接、编辑、启用/禁用或删除。
+          管理自备大模型。卡片中可测试连接、编辑、启用/禁用或删除。
         </p>
       </div>
       <a-button type="primary" @click="openAdd">
@@ -244,7 +244,7 @@ function confirmDelete(row: UserLlmProfileOut) {
       </a-button>
     </div>
 
-    <a-spin :spinning="loading">
+    <a-spin class="llm-page__spin" :spinning="loading">
       <div v-if="!items.length && !loading" class="llm-page__empty">
         <ApiOutlined class="llm-page__empty-icon" />
         <p>暂无配置，请点击「添加配置」</p>
@@ -385,7 +385,18 @@ function confirmDelete(row: UserLlmProfileOut) {
   width: 100%;
   max-width: none;
   box-sizing: border-box;
-  padding: 0 0 32px;
+  /* 抵消 a-row gutter 的负 margin，避免整页出现横向滚动条 */
+  padding: 16px 16px 32px;
+  min-width: 0;
+}
+
+.llm-page__spin {
+  display: block;
+  min-width: 0;
+
+  :deep(.ant-spin-container) {
+    min-width: 0;
+  }
 }
 
 .llm-page__head {

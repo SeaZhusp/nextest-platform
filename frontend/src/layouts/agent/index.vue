@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { MenuUnfoldOutlined } from '@ant-design/icons-vue'
-import Sidebar from './components/sidebar/index.vue'
+import Sidebar from './Sidebar.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
