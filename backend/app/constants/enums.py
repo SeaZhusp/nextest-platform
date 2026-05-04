@@ -14,3 +14,9 @@ class TokenTypeEnum(str, Enum):
 class SortOrderEnum(str, Enum):
     ASC = "asc"
     DESC = "desc"
+
+
+class ProjectMemberRoleEnum(str, Enum):
+    OWNER = "owner"
+    LEADER = "leader"
+    TESTER = "tester"

@@ -38,6 +38,12 @@ const routes = [
     meta: { requiresAuth: true },
     children: [
       {
+        path: 'projects',
+        name: 'projects',
+        component: () => import('@/views/projects/index.vue'),
+        meta: { title: '我的项目', icon: 'FolderOutlined', showInMenu: false }
+      },
+      {
         path: 'agent',
         name: 'agent',
         component: () => import('@/views/agent/index.vue'),

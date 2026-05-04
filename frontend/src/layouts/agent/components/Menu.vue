@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { FolderOutlined, CloudOutlined } from '@ant-design/icons-vue'
+import { FolderOutlined, RobotOutlined, CloudOutlined } from '@ant-design/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
 
 /** 侧栏固定菜单：路径与 router 中页面一致 */
 const menuItems = [
-  { key: '/agent', label: '我的项目', icon: FolderOutlined },
+  { key: '/projects', label: '我的项目', icon: FolderOutlined },
   { key: '/llm', label: '模型配置', icon: CloudOutlined },
 ] as const
 

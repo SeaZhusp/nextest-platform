@@ -72,11 +72,12 @@ onUnmounted(() => {
 </template>
 
 <style lang="scss" scoped>
+/* 须低于 Ant Design Modal 默认 z-index(1000)，避免弹窗时盖住遮罩 */
 .layout-sidebar-fold {
   position: fixed;
   left: 260px;
   top: 10px;
-  z-index: 1001;
+  z-index: 999;
   width: 40px;
   height: 40px;
   padding: 0 !important;
@@ -103,7 +104,7 @@ onUnmounted(() => {
   position: fixed;
   left: 0;
   top: 10px;
-  z-index: 1001;
+  z-index: 999;
   width: 40px;
   height: 40px;
   padding: 0 !important;
