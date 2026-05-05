@@ -25,7 +25,7 @@ import {
 const router = useRouter()
 
 function goWorkspace(row: ProjectRow) {
-  void router.push({ name: 'project-cases', params: { projectId: String(row.id) } })
+  void router.push({ name: 'functional-test-cases', params: { projectId: String(row.id) } })
 }
 
 const participationOptions: { value: ProjectParticipation; label: string }[] = [

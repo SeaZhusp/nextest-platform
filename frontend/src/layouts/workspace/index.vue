@@ -58,30 +58,32 @@ const navItems = computed<NavItem[]>(() => {
     {
       key: 'functional-test',
       label: '功能测试',
-      children: [{ key: 'functional-test-cases', label: '测试用例', name: 'functional-test-cases' }],
+      children: [
+        { key: 'functional-test-cases', label: '测试用例', name: 'functional-test-cases' }
+      ],
     },
     {
       key: 'api-test',
       label: '接口测试',
       children: [
-        { key: 'api-list', label: '接口列表', name: 'project-api-test-list' },
-        { key: 'api-mock', label: 'Mock 服务', name: 'project-api-mock' },
+        { key: 'api-list', label: '接口列表', name: 'api-test-list' },
+        { key: 'api-mock', label: 'Mock 服务', name: 'api-mock' },
       ],
     },
     {
       key: 'ui-test',
       label: 'UI 测试',
       children: [
-        { key: 'ui-cases', label: '用例管理', name: 'project-ui-test-cases' },
-        { key: 'ui-rec', label: '录制回放', name: 'project-ui-recording' },
+        { key: 'ui-cases', label: '用例管理', name: 'ui-test-cases' },
+        { key: 'ui-rec', label: '录制回放', name: 'ui-recording' },
       ],
     },
     {
       key: 'perf-test',
       label: '性能测试',
       children: [
-        { key: 'perf-scn', label: '压测场景', name: 'project-perf-scenarios' },
-        { key: 'perf-rep', label: '测试报告', name: 'project-perf-reports' },
+        { key: 'perf-scn', label: '压测场景', name: 'perf-scenarios' },
+        { key: 'perf-rep', label: '测试报告', name: 'perf-reports' },
       ],
     },
   ]

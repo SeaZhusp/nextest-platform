@@ -39,19 +39,19 @@ const routes = [
     children: [
       {
         path: 'projects/:projectId',
-        component: () => import('@/layouts/project-workspace/index.vue'),
-        redirect: (to) => {
+        component: () => import('@/layouts/workspace/index.vue'),
+        redirect: (to: { params: { projectId: string | string[] } }) => {
           const raw = to.params.projectId
           const id = Array.isArray(raw) ? raw[0] : raw
-          return { name: 'project-cases', params: { projectId: String(id ?? '') } }
+          return { name: 'functional-test-cases', params: { projectId: String(id ?? '') } }
         },
         meta: { title: '项目工作台', showInMenu: false },
         children: [
           {
-            path: 'functional/cases',
-            name: 'project-cases',
-            component: () => import('@/views/projects/workspace/CasesShell.vue'),
-            meta: { title: '用例库' },
+            path: 'functional/test-cases',
+            name: 'functional-test-cases',
+            component: () => import('@/views/workspace/functional/test-cases.vue'),
+            meta: { title: '测试用例' },
           },
           {
             path: 'api-tests',
