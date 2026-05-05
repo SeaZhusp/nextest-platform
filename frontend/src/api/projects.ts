@@ -138,3 +138,10 @@ export function deleteProject(projectId: number): Promise<{ code: number; messag
     method: 'DELETE',
   })
 }
+
+export function fetchProject(projectId: number): Promise<ProjectOutResponse> {
+  return request({
+    url: `/projects/${projectId}`,
+    method: 'GET',
+  })
+}

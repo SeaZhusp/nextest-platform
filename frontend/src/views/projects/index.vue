@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
   PlusOutlined,
@@ -8,6 +9,7 @@ import {
   DeleteOutlined,
   AppstoreOutlined,
   TeamOutlined,
+  RightOutlined,
 } from '@ant-design/icons-vue'
 import type { ProjectMemberRow, ProjectParticipation, ProjectRow } from '@/api/projects'
 import {
@@ -19,6 +21,12 @@ import {
   updateProject,
   deleteProject,
 } from '@/api/projects'
+
+const router = useRouter()
+
+function goWorkspace(row: ProjectRow) {
+  void router.push({ name: 'project-cases', params: { projectId: String(row.id) } })
+}
 
 const participationOptions: { value: ProjectParticipation; label: string }[] = [
   { value: 'all', label: '全部（我创建或我加入）' },
@@ -324,6 +332,9 @@ onMounted(() => {
               </div>
 
               <div class="projects-card__foot">
+                <a-button type="link" size="small" @click="goWorkspace(row)">
+                  <RightOutlined /> 进入项目
+                </a-button>
                 <a-button type="link" size="small" @click="openMembersModal(row)">
                   <TeamOutlined /> 成员
                 </a-button>
@@ -607,7 +618,7 @@ onMounted(() => {
   text-overflow: ellipsis;
   display: -webkit-box;
   line-clamp: 2;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   line-height: 1.45;
   max-width: 100%;

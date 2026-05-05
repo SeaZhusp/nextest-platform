@@ -38,6 +38,60 @@ const routes = [
     meta: { requiresAuth: true },
     children: [
       {
+        path: 'projects/:projectId',
+        component: () => import('@/layouts/project-workspace/index.vue'),
+        redirect: (to) => {
+          const raw = to.params.projectId
+          const id = Array.isArray(raw) ? raw[0] : raw
+          return { name: 'project-cases', params: { projectId: String(id ?? '') } }
+        },
+        meta: { title: '项目工作台', showInMenu: false },
+        children: [
+          {
+            path: 'functional/cases',
+            name: 'project-cases',
+            component: () => import('@/views/projects/workspace/CasesShell.vue'),
+            meta: { title: '用例库' },
+          },
+          {
+            path: 'api-tests',
+            name: 'project-api-tests',
+            component: () => import('@/views/hub/ComingSoon.vue'),
+            meta: { title: '接口列表' },
+          },
+          {
+            path: 'api-mock',
+            name: 'project-api-mock',
+            component: () => import('@/views/hub/ComingSoon.vue'),
+            meta: { title: 'Mock 服务' },
+          },
+          {
+            path: 'ui-tests',
+            name: 'project-ui-tests',
+            component: () => import('@/views/hub/ComingSoon.vue'),
+            meta: { title: 'UI 用例管理' },
+          },
+          {
+            path: 'ui-recording',
+            name: 'project-ui-recording',
+            component: () => import('@/views/hub/ComingSoon.vue'),
+            meta: { title: '录制回放' },
+          },
+          {
+            path: 'perf-scenarios',
+            name: 'project-perf-scenarios',
+            component: () => import('@/views/hub/ComingSoon.vue'),
+            meta: { title: '压测场景' },
+          },
+          {
+            path: 'perf-reports',
+            name: 'project-perf-reports',
+            component: () => import('@/views/hub/ComingSoon.vue'),
+            meta: { title: '性能测试报告' },
+          },
+        ],
+      },
+      {
         path: 'projects',
         name: 'projects',
         component: () => import('@/views/projects/index.vue'),
