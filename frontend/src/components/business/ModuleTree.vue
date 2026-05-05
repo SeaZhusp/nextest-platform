@@ -474,7 +474,7 @@ defineExpose({
           <div class="pmtp-tree__title-wrap">
             <span class="pmtp-tree__row">
               <FolderOutlined class="pmtp-tree__icon" aria-hidden="true" />
-              <span class="pmtp-tree__text">{{ text }}</span>
+              <span class="pmtp-tree__text" :title="String(text)">{{ text }}</span>
             </span>
             <span v-if="showRowActions" class="pmtp-tree__actions" @click.stop>
               <a-button
@@ -592,9 +592,20 @@ defineExpose({
   padding: 4px 4px 8px;
 }
 
+:deep(.ant-tree-treenode) {
+  min-width: 0;
+}
+
+:deep(.ant-tree-node-content-wrapper) {
+  min-width: 0 !important;
+  flex: 1 1 0 !important;
+  border-radius: 6px;
+}
+
 :deep(.ant-tree-title) {
   flex: 1;
   min-width: 0;
+  width: 100%;
 }
 
 .pmtp-tree__title-wrap {
@@ -602,22 +613,27 @@ defineExpose({
   align-items: center;
   gap: 8px;
   width: 100%;
+  max-width: 100%;
   min-width: 0;
   padding-right: 4px;
+  box-sizing: border-box;
 }
 
 .pmtp-tree__row {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1;
+  gap: 8px;
+  flex: 1 1 0;
   min-width: 0;
+  overflow: hidden;
 }
 
 .pmtp-tree__actions {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
+  flex-grow: 0;
   gap: 0;
   opacity: 0;
   transition: opacity 0.15s ease;
@@ -640,14 +656,18 @@ defineExpose({
   font-size: 14px;
 }
 
+.pmtp-tree__icon {
+  flex-shrink: 0;
+  color: #faad14;
+  font-size: 14px;
+}
+
 .pmtp-tree__text {
+  flex: 1 1 0;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-:deep(.ant-tree-node-content-wrapper) {
-  border-radius: 6px;
 }
 
 :deep(.ant-tree-node-selected .ant-tree-node-content-wrapper) {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import ProjectModuleTreePanel from '@/components/business/ProjectModuleTreePanel.vue'
+import ModuleTree from '@/components/business/ModuleTree.vue'
 import type { ProjectModuleNode } from '@/api/project-modules'
 
 const route = useRoute()
@@ -40,7 +40,7 @@ watch(projectIdNum, () => {
 
     <div v-else class="cases-shell__layout">
       <aside class="cases-shell__aside" aria-label="模块目录">
-        <ProjectModuleTreePanel
+        <ModuleTree
           :project-id="projectIdNum"
           v-model="selectedModuleId"
           title="模块目录"
