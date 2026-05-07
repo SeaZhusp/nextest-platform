@@ -30,13 +30,7 @@ from app.schemas.agent import AgentChatRequest
 from app.schemas.llm_invoke import LlmInvokeConfig
 from app.contracts.skill import SkillContext
 from app.agent.skills.executor import execute_skill
-from app.agent.skills.structured_generation import (
-    build_messages,
-    default_prompt_vars,
-    parse_items,
-    render_prompt,
-    stream_llm_text,
-)
+from app.agent.skills.structured_generation import parse_items, stream_llm_text
 from app.agent.skills.config import load_skill_config
 from app.schemas.testcase import TestCaseItem
 

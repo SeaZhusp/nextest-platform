@@ -11,11 +11,9 @@ from app.contracts.skill import BaseSkill, SkillContext, SkillRunResult
 from app.core.exceptions import BusinessException
 from app.agent.skills.config import load_skill_config
 from app.agent.skills.structured_generation import (
-    PromptVars,
     build_messages,
-    default_prompt_vars,
+    format_prompt_template,
     generate_structured_items,
-    render_prompt,
     resolve_messages,
 )
 
@@ -29,8 +27,9 @@ class BaseStructuredSkill(BaseSkill, ABC, Generic[TItem]):
     @abstractmethod
     def item_model(self) -> type[TItem]: ...
 
-    def prompt_vars(self) -> PromptVars:
-        return default_prompt_vars()
+    def prompt_format_kwargs(self) -> dict[str, Any]:
+        """Subclass may supply `.format()` kwargs when `config.json` uses `prompt_template` with placeholders."""
+        return {}
 
     def error_message(self) -> str:
         return "模型输出不是合法结构化结果，请缩短需求或重试"
@@ -39,7 +38,7 @@ class BaseStructuredSkill(BaseSkill, ABC, Generic[TItem]):
         cfg = load_skill_config(self.skill_id)
         tpl = cfg.prompt_template
         if tpl:
-            return render_prompt(tpl, vars=self.prompt_vars())
+            return format_prompt_template(tpl, **self.prompt_format_kwargs())
         return "请输出符合要求的结构化 JSON。"
 
     @property

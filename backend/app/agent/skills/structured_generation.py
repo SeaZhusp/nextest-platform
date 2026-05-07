@@ -5,12 +5,10 @@ from __future__ import annotations
 import json
 import logging
 import re
-from dataclasses import dataclass
 from typing import Any, AsyncIterator, TypeVar
 
 from pydantic import BaseModel
 
-from app.core.config import settings
 from app.core.exceptions import BusinessException
 from app.llm.client import chat_completion_content, chat_completion_stream_deltas
 from app.schemas.llm_invoke import LlmInvokeConfig
@@ -20,25 +18,12 @@ logger = logging.getLogger(__name__)
 TItem = TypeVar("TItem", bound=BaseModel)
 
 
-@dataclass(frozen=True)
-class PromptVars:
-    min_cases: int
-    soft_hint: str
-
-
-def default_prompt_vars() -> PromptVars:
-    n = int(settings.agent_min_generated_test_cases)
-    soft_hint = (
-        "需求简单时满足条数即可；若场景多面、边界多，请主动多生成几条便于评审。"
-        if n <= 1
-        else ""
-    )
-    return PromptVars(min_cases=n, soft_hint=soft_hint)
-
-
-def render_prompt(template: str, *, vars: PromptVars) -> str:
+def format_prompt_template(template: str, **kwargs: Any) -> str:
+    """Fill `{name}` placeholders in a prompt template; invalid placeholders leave template unchanged."""
+    if not kwargs:
+        return template
     try:
-        return template.format(min_cases=vars.min_cases, soft_hint=vars.soft_hint)
+        return template.format(**kwargs)
     except Exception:
         return template
 

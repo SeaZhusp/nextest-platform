@@ -36,8 +36,6 @@ class Settings(BaseSettings):
 
     # 智能体 / 用户输入（阶段一 2.2.1）
     agent_max_user_text_chars: int = 5000
-    # 技能 prompt 模板中 {min_cases} 占位；与「无需求输出 []」策略独立，勿强行凑条数
-    agent_min_generated_test_cases: int = Field(default=1, ge=0, le=50)
     # 会话记忆：进入 LLM 的最近对话轮数（阶段一 2.2.4 F1.12，一轮 = user + assistant）
     agent_context_max_rounds: int = 6
     # 轻量计划执行策略

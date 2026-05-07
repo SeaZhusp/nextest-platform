@@ -11,8 +11,6 @@ import logging
 from typing import Any
 
 from app.models.conversation import ConversationMessage
-from app.agent.skills.config import load_skill_config
-from app.agent.skills.structured_generation import default_prompt_vars, render_prompt
 from skills.test_case_gen.prompts import get_system_prompt_for_test_case_gen
 
 logger = logging.getLogger(__name__)
